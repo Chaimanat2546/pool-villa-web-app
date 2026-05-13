@@ -176,7 +176,7 @@ const IMAGE_ZONE_LABELS: Record<string, string> = {
   inside: "ภายใน",
   bedroom: "ห้องนอน",
   bathroom: "ห้องน้ำ",
-  kitchen: "ครัว",
+  kitchen: "ห้องครัว",
   parking: "ที่จอดรถ",
   review: "รีวิว",
 };
