@@ -176,6 +176,20 @@ submit form
 expected: URL ยังเก็บ query params ที่เลือกไว้
 ```
 
+## House Gallery Implementation
+
+รายละเอียดการเพิ่มฟีเจอร์ Gallery ให้กับหน้า `/houses/[id]`:
+
+- **Server-side helper**: ดึงรูปจาก API ใน `lib/houses.ts` พร้อม pagination, map `image_zone`, และใส่ header `Accept`/`User-Agent` เพื่อป้องกัน 403
+- **UI Component**: Bento gallery + modal ดูรูปทั้งหมดใน `HouseImageGallery.tsx`
+- **Integration**: ผูกหน้า detail ให้เรียกรูปบ้านตาม id ใน `app/(public)/houses/[id]/page.tsx`
+- **Config**: เพิ่ม remote image host ใน `next.config.ts` และ placeholder env ใน `.env.example`
+
+การตรวจสอบ:
+- ผ่าน `npm run lint` และ `npm run build`
+- ทดสอบที่ `/houses/9` เห็น Bento + ปุ่ม “ดูรูปทั้งหมด” และ modal แยกหมวดตาม `image_zone`
+- ไม่มี token หลุดไปฝั่ง client
+
 ## Style Preferences
 
 - ทำให้ page อ่านเหมือน orchestration ไม่ใช่ที่รวม business logic

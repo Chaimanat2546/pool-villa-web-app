@@ -1,6 +1,9 @@
 const HOUSE_API_URL =
   "https://www.devillegroups.com/api/json/getHouse_deville.json";
 
+const HOUSE_IMAGES_API_URL = "https://api.poolvilla.co.th/api/images";
+const HOUSE_IMAGE_DELIVERY_BASE_URL =
+  "https://d24r25u6qcb3zryipzoiqj2jxy0ilqtm.lambda-url.ap-southeast-1.on.aws";
 const COVER_IMAGE_BASE_URL =
   "https://www.devillegroups.com/imgs/profile_imgs_large";
 
@@ -9,6 +12,8 @@ const NEAR_SEA_MAX_DISTANCE = 4;
 const INACTIVE_MIN_PRICE = "0";
 const INACTIVE_MAX_PRICE = "30000";
 const INACTIVE_PEOPLE = "0";
+const HOUSE_IMAGES_PAGE_LIMIT = 100;
+const HOUSE_IMAGES_MAX_PAGES = 10;
 
 type ExternalHouse = {
   h_id: string;
@@ -35,6 +40,22 @@ type ExternalHouse = {
   people: string | null;
 };
 
+type ExternalHouseImage = {
+  property_id: number;
+  cover_select: number | null;
+  image_name: string | null;
+  image_zone: string | null;
+  image_move: number | null;
+};
+
+type HouseImagesResponse = {
+  data?: ExternalHouseImage[];
+  pagination?: {
+    limit?: number;
+    offset?: number;
+  };
+};
+
 export type House = {
   id: string;
   coverImage: string | null;
@@ -58,6 +79,22 @@ export type House = {
   jacuzzi: string;
   bath: string;
   people: string;
+};
+
+export type HouseImage = {
+  propertyId: number;
+  imageName: string;
+  url: string;
+  zone: string;
+  zoneLabel: string;
+  order: number;
+  isCoverSelected: boolean;
+};
+
+export type HouseImageGroup = {
+  zone: string;
+  label: string;
+  images: HouseImage[];
 };
 
 export type HouseCardData = Pick<
@@ -133,6 +170,17 @@ const AMENITY_FILTERS: AmenityFilter[] = [
   { param: "bath", field: "bath" },
 ];
 
+const IMAGE_ZONE_LABELS: Record<string, string> = {
+  cover: "รูปปก",
+  outside: "ภายนอก",
+  inside: "ภายใน",
+  bedroom: "ห้องนอน",
+  bathroom: "ห้องน้ำ",
+  kitchen: "ครัว",
+  parking: "ที่จอดรถ",
+  review: "รีวิว",
+};
+
 function withFallback(value: string | null | undefined, fallback = "ไม่มี") {
   return value?.trim() ? value : fallback;
 }
@@ -184,6 +232,131 @@ export async function getHouseById(id: string): Promise<House | null> {
   const houses = await getHouses();
 
   return houses.find((house) => house.id === id) ?? null;
+}
+
+function getHouseImageUrl(imageName: string) {
+  return `${HOUSE_IMAGE_DELIVERY_BASE_URL}/${encodeURIComponent(imageName)}`;
+}
+
+export function formatImageZone(zone: string | null | undefined) {
+  const normalizedZone = zone?.trim().toLowerCase() || "other";
+
+  return (
+    IMAGE_ZONE_LABELS[normalizedZone] ??
+    normalizedZone
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  );
+}
+
+function mapExternalHouseImage(image: ExternalHouseImage): HouseImage | null {
+  const imageName = image.image_name?.trim();
+
+  if (!imageName) return null;
+
+  const zone = image.image_zone?.trim().toLowerCase() || "other";
+
+  return {
+    propertyId: image.property_id,
+    imageName,
+    url: getHouseImageUrl(imageName),
+    zone,
+    zoneLabel: formatImageZone(zone),
+    order: image.image_move ?? 0,
+    isCoverSelected: image.cover_select === 1,
+  };
+}
+
+function sortHouseImages(images: HouseImage[]) {
+  return images.sort((a, b) => {
+    if (a.zone !== b.zone) return a.zone.localeCompare(b.zone);
+    if (a.order !== b.order) return a.order - b.order;
+
+    return a.imageName.localeCompare(b.imageName);
+  });
+}
+
+export async function getHouseImages(propertyId: string): Promise<HouseImage[]> {
+  const token = process.env.POOLVILLA_API_TOKEN;
+
+  if (!token) {
+    return [];
+  }
+
+  const images: ExternalHouseImage[] = [];
+
+  for (let page = 0; page < HOUSE_IMAGES_MAX_PAGES; page += 1) {
+    const offset = page * HOUSE_IMAGES_PAGE_LIMIT;
+    const url = new URL(HOUSE_IMAGES_API_URL);
+    url.searchParams.set("property_id", propertyId);
+    url.searchParams.set("limit", String(HOUSE_IMAGES_PAGE_LIMIT));
+    url.searchParams.set("offset", String(offset));
+
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+          "User-Agent": "pool-villa-web-app/1.0",
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        return [];
+      }
+
+      const body = (await res.json()) as HouseImagesResponse;
+      const pageImages = Array.isArray(body.data) ? body.data : [];
+
+      images.push(...pageImages);
+
+      const responseLimit = body.pagination?.limit ?? HOUSE_IMAGES_PAGE_LIMIT;
+
+      if (pageImages.length < responseLimit) {
+        break;
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return sortHouseImages(
+    images
+      .map(mapExternalHouseImage)
+      .filter((image): image is HouseImage => image !== null),
+  );
+}
+
+export function groupHouseImagesByZone(
+  images: HouseImage[],
+): HouseImageGroup[] {
+  const groups = new Map<string, HouseImage[]>();
+
+  images.forEach((image) => {
+    const group = groups.get(image.zone);
+
+    if (group) {
+      group.push(image);
+    } else {
+      groups.set(image.zone, [image]);
+    }
+  });
+
+  return Array.from(groups.entries())
+    .map(([zone, groupedImages]) => ({
+      zone,
+      label: formatImageZone(zone),
+      images: groupedImages,
+    }))
+    .sort((a, b) => {
+      const coverSort = Number(a.zone !== "cover") - Number(b.zone !== "cover");
+      if (coverSort !== 0) return coverSort;
+
+      return a.label.localeCompare(b.label);
+    });
 }
 
 export function toHouseApiData(house: House): HouseApiData {

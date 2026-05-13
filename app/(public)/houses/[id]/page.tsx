@@ -1,7 +1,13 @@
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { formatSeaDistance, getHouseById, type House } from "@/lib/houses";
+import {
+  formatSeaDistance,
+  getHouseById,
+  getHouseImages,
+  groupHouseImagesByZone,
+  type House,
+} from "@/lib/houses";
+import { HouseImageGallery } from "./HouseImageGallery";
 
 type PageProps = {
   params: Promise<{
@@ -53,18 +59,17 @@ async function HouseDetail({ params }: PageProps) {
     notFound();
   }
 
+  const houseImages = await getHouseImages(id);
+  const imageGroups = groupHouseImagesByZone(houseImages);
+
   return (
     <>
-      {house.coverImage && (
-        <Image
-          src={house.coverImage}
-          alt={`DV-${house.id}`}
-          width={1200}
-          height={700}
-          priority
-          className="mb-6 h-[500px] w-full rounded-xl object-cover"
-        />
-      )}
+      <HouseImageGallery
+        houseId={house.id}
+        coverImage={house.coverImage}
+        images={houseImages}
+        imageGroups={imageGroups}
+      />
 
       <div className="space-y-2 text-lg">
         {getDetailRows(house).map((row) => (
