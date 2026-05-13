@@ -99,6 +99,7 @@ export async function GET() {
             data: mappedHouses,
         });
     } catch (error) {
+        console.log(error);
         return NextResponse.json(
             { error: "An unexpected error occurred while fetching house data." },
             { status: 500 }
