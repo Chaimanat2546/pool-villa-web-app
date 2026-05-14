@@ -12,7 +12,7 @@ type EditBlogPostPageProps = {
 
 export default function EditBlogPostPage({ params }: EditBlogPostPageProps) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <div>
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Admin dashboard
@@ -23,7 +23,7 @@ export default function EditBlogPostPage({ params }: EditBlogPostPageProps) {
       <Suspense fallback={<p>Loading editor...</p>}>
         <EditBlogPost params={params} />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

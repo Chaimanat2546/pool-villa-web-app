@@ -47,7 +47,7 @@ function BlogArticle({ post }: { post: BlogPost }) {
         <p className="mb-3 text-sm font-medium uppercase tracking-wide text-muted-foreground">
           {post.code}
         </p>
-        <h1 className="text-4xl font-bold leading-tight">{post.title}</h1>
+        <h1 className="text-4xl font-bold leading-tight text-primary">{post.title}</h1>
         {post.excerpt && (
           <p className="mt-4 text-xl leading-8 text-muted-foreground">
             {post.excerpt}

@@ -8,6 +8,7 @@ import type {
   HouseRecommendationStatus,
 } from "@/lib/house-recommendations";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -18,7 +19,7 @@ type RecommendationManagerProps = {
 type RecommendationDraft = {
   hId: string;
   startsAt: string;
-  endsAt: string;
+  endsAt: string | null;
   status: HouseRecommendationStatus;
 };
 
@@ -26,15 +27,21 @@ function getDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function getInitialCreateDraft(): RecommendationDraft {
+function getDefaultEndDateValue() {
   const startsAt = new Date();
   const endsAt = new Date();
   endsAt.setDate(startsAt.getDate() + 7);
 
+  return getDateInputValue(endsAt);
+}
+
+function getInitialCreateDraft(): RecommendationDraft {
+  const startsAt = new Date();
+
   return {
     hId: "",
     startsAt: getDateInputValue(startsAt),
-    endsAt: getDateInputValue(endsAt),
+    endsAt: getDefaultEndDateValue(),
     status: "hidden",
   };
 }
@@ -57,9 +64,21 @@ function toPayload(draft: RecommendationDraft) {
   return {
     h_id: draft.hId,
     starts_at: draft.startsAt,
-    ends_at: draft.endsAt,
+    ends_at: draft.endsAt || null,
     status: draft.status,
   };
+}
+
+function hasDraftChanges(
+  recommendation: HouseRecommendation,
+  draft: RecommendationDraft,
+) {
+  return (
+    recommendation.hId !== draft.hId ||
+    recommendation.startsAt !== draft.startsAt ||
+    recommendation.endsAt !== draft.endsAt ||
+    recommendation.status !== draft.status
+  );
 }
 
 async function readApiResponse(response: Response) {
@@ -159,7 +178,7 @@ export function RecommendationManager({
   function setDraftField(
     id: string,
     field: keyof RecommendationDraft,
-    value: string,
+    value: RecommendationDraft[keyof RecommendationDraft],
   ) {
     setDrafts((current) => ({
       ...current,
@@ -174,9 +193,9 @@ export function RecommendationManager({
     <div className="space-y-6">
       <form
         onSubmit={submitCreate}
-        className="grid gap-4 rounded-lg border bg-white p-5 shadow-sm"
+        className="grid gap-4 rounded-lg border border-border bg-card p-5 shadow-sm"
       >
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_160px_auto] md:items-end">
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr_1fr_160px_auto] md:items-start">
           <div className="grid gap-2">
             <Label htmlFor="create-h-id">รหัสบ้าน</Label>
             <Input
@@ -214,15 +233,31 @@ export function RecommendationManager({
             <Input
               id="create-ends-at"
               type="date"
-              value={createDraft.endsAt}
+              value={createDraft.endsAt ?? ""}
               onChange={(event) =>
                 setCreateDraft((current) => ({
                   ...current,
-                  endsAt: event.target.value,
+                  endsAt: event.target.value || null,
                 }))
               }
-              required
+              disabled={createDraft.endsAt === null}
             />
+            <label
+              htmlFor="create-no-expiry"
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+            >
+              <Checkbox
+                id="create-no-expiry"
+                checked={createDraft.endsAt === null}
+                onCheckedChange={(checked) =>
+                  setCreateDraft((current) => ({
+                    ...current,
+                    endsAt: checked === true ? null : getDefaultEndDateValue(),
+                  }))
+                }
+              />
+              ไม่มีวันหมดอายุ
+            </label>
           </div>
 
           <div className="grid gap-2">
@@ -243,23 +278,23 @@ export function RecommendationManager({
             </select>
           </div>
 
-          <Button type="submit" disabled={isPending}>
-            <Plus aria-hidden="true" />
+          <Button type="submit" className="mt-5" disabled={isPending}>
+            <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
             เพิ่ม
           </Button>
         </div>
 
-        {feedback && <p className="text-sm text-green-700">{feedback}</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {feedback && <p className="text-sm text-muted-foreground">{feedback}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </form>
 
-      <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
-        <div className="grid min-w-[820px] grid-cols-[120px_1fr_1fr_150px_160px] items-center gap-16 border-b bg-muted/40 px-4 py-3 text-sm font-medium text-muted-foreground">
+      <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+        <div className="grid min-w-[820px] grid-cols-[120px_1fr_1fr_150px_160px] items-center gap-16 border-b border-border bg-muted/50 px-4 py-3 text-sm font-medium text-primary">
           <span>รหัสบ้าน</span>
           <span>วันเริ่ม</span>
           <span>วันหมดอายุ</span>
           <span>สถานะ</span>
-          <span className="text-right">จัดการ</span>
+          <span>จัดการ</span>
         </div>
 
         {recommendations.length === 0 ? (
@@ -267,7 +302,7 @@ export function RecommendationManager({
             ยังไม่มีรายการ
           </p>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-border">
             {[...recommendations].sort((a, b) => {
               const draftA = drafts[a.id];
               const draftB = drafts[b.id];
@@ -275,11 +310,11 @@ export function RecommendationManager({
               if (!draftA || !draftB) return 0;
 
               // visible ขึ้นก่อน hidden
-              if (draftA.status === "visible" && draftB.status === "hidden") {
+              if (a.status === "visible" && b.status === "hidden") {
                 return -1;
               }
 
-              if (draftA.status === "hidden" && draftB.status === "visible") {
+              if (a.status === "hidden" && b.status === "visible") {
                 return 1;
               }
 
@@ -287,11 +322,12 @@ export function RecommendationManager({
             }).map((recommendation) => {
               const draft = drafts[recommendation.id];
               if (!draft) return null;
+              const isDirty = hasDraftChanges(recommendation, draft);
 
               return (
                 <div
                   key={recommendation.id}
-                  className="grid min-w-[820px] grid-cols-[120px_1fr_1fr_150px_160px] gap-16 px-4 py-3"
+                  className={`grid min-w-[820px] grid-cols-[120px_1fr_1fr_150px_160px] gap-12 px-4 py-3 ${isDirty ? "bg-muted/70" : ""}`}
                 >
                   <Input
                     value={draft.hId}
@@ -314,18 +350,34 @@ export function RecommendationManager({
                       )
                     }
                   />
-                  <Input
-                    type="date"
-                    value={draft.endsAt}
-                    onChange={(event) =>
-                      setDraftField(
-                        recommendation.id,
-                        "endsAt",
-                        event.target.value,
-                      )
-                    }
-                  />
-                  <div className="flex items-center gap-2">
+                  <div className="grid gap-2 items-start">
+                    <Input
+                      type="date"
+                      value={draft.endsAt ?? ""}
+                      onChange={(event) =>
+                        setDraftField(
+                          recommendation.id,
+                          "endsAt",
+                          event.target.value || null,
+                        )
+                      }
+                      disabled={draft.endsAt === null}
+                    />
+                    <label className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Checkbox
+                        checked={draft.endsAt === null}
+                        onCheckedChange={(checked) =>
+                          setDraftField(
+                            recommendation.id,
+                            "endsAt",
+                            checked === true ? null : getDefaultEndDateValue(),
+                          )
+                        }
+                      />
+                      ไม่มีวันหมดอายุ
+                    </label>
+                  </div>
+                  <div className="flex items-start gap-2">
                     <select
                       value={draft.status}
                       onChange={(event) =>
@@ -335,13 +387,14 @@ export function RecommendationManager({
                           event.target.value,
                         )
                       }
-                      className={`${draft.status === "hidden" ? "text-red-600" : "text-green-600"} h-9 min-w-24 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`}
+                      className={`${draft.status === "hidden" ? "text-muted-foreground" : ""} h-9 min-w-24 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`}
                     >
                       <option value="hidden">ไม่แสดง</option>
                       <option value="visible">แสดง</option>
                     </select>
+
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex gap-2">
                     <Button
                       type="button"
                       size="icon"
@@ -349,8 +402,9 @@ export function RecommendationManager({
                       onClick={() => updateRecommendation(recommendation.id)}
                       disabled={isPending}
                       aria-label="Save recommendation"
+                      className=" hover:bg-brand hover:text-brand-foreground"
                     >
-                      <Save aria-hidden="true" />
+                      <Save className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <Button
                       type="button"
@@ -360,7 +414,7 @@ export function RecommendationManager({
                       disabled={isPending}
                       aria-label="Delete recommendation"
                     >
-                      <Trash2 aria-hidden="true" />
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

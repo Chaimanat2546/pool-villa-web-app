@@ -1,5 +1,7 @@
 "use client";
 
+import { faAngleDown } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -7,8 +9,10 @@ type SearchFiltersProps = {
   defaultQ?: string;
   defaultMinPrice?: string;
   defaultMaxPrice?: string;
+  defaultMaxFarsea?: string;
   defaultPeople?: string;
   defaultSort?: string;
+  defaultRecommended?: string;
   defaultWifi?: string;
   defaultGrill?: string;
   defaultPet?: string;
@@ -52,8 +56,10 @@ export function SearchFilters({
   defaultQ = "",
   defaultMinPrice = "",
   defaultMaxPrice = "",
+  defaultMaxFarsea = "",
   defaultPeople = "",
   defaultSort = "",
+  defaultRecommended = "",
   defaultWifi = "",
   defaultGrill = "",
   defaultPet = "",
@@ -73,6 +79,7 @@ export function SearchFilters({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [minPriceVal, setMinPriceVal] = useState(defaultMinPrice || "0");
   const [maxPriceVal, setMaxPriceVal] = useState(defaultMaxPrice || "30000");
+  const [maxFarseaVal, setMaxFarseaVal] = useState(defaultMaxFarsea || "0");
   const [peopleVal, setPeopleVal] = useState(defaultPeople || "0");
   const [sortVal, setSortVal] = useState(defaultSort);
   const [amenities, setAmenities] = useState<Record<AmenityName, boolean>>({
@@ -125,6 +132,8 @@ export function SearchFilters({
   const shouldSubmitMinPrice = minPriceVal !== "0" || Boolean(defaultMinPrice);
   const shouldSubmitMaxPrice =
     maxPriceVal !== "30000" || Boolean(defaultMaxPrice);
+  const shouldSubmitMaxFarsea =
+    maxFarseaVal !== "0" || Boolean(defaultMaxFarsea);
   const shouldSubmitPeople = peopleVal !== "0" || Boolean(defaultPeople);
 
   return (
@@ -143,11 +152,23 @@ export function SearchFilters({
       />
       <input
         type="hidden"
+        name="maxFarsea"
+        value={maxFarseaVal}
+        disabled={!shouldSubmitMaxFarsea}
+      />
+      <input
+        type="hidden"
         name="people"
         value={peopleVal}
         disabled={!shouldSubmitPeople}
       />
       <input type="hidden" name="sort" value={sortVal} disabled={!sortVal} />
+      <input
+        type="hidden"
+        name="recommended"
+        value="y"
+        disabled={defaultRecommended !== "y"}
+      />
       {amenityOptions.map((amenity) =>
         amenities[amenity.name] ? (
           <input
@@ -173,7 +194,7 @@ export function SearchFilters({
             onClick={() => toggleMenu("price")}
             className="h-10 rounded-full border px-4 text-sm"
           >
-            Price⌄
+            Price<FontAwesomeIcon icon={faAngleDown} />
           </button>
 
           {openMenu === "price" && (
@@ -181,7 +202,7 @@ export function SearchFilters({
               <label className="mb-4 block text-sm">
                 <div className="mb-2 flex justify-between">
                   <span>ราคาเริ่มต้น</span>
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-semibold text-accent">
                     {minPriceVal === "0"
                       ? "ไม่กำหนด"
                       : `฿ ${Number(minPriceVal).toLocaleString()}`}
@@ -194,14 +215,14 @@ export function SearchFilters({
                   step="500"
                   value={minPriceVal}
                   onChange={(event) => setMinPriceVal(event.target.value)}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-accent"
                 />
               </label>
 
               <label className="block text-sm">
                 <div className="mb-2 flex justify-between">
                   <span>ราคาสูงสุด</span>
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-semibold text-accent">
                     {maxPriceVal === "30000"
                       ? "ไม่จำกัด"
                       : `฿ ${Number(maxPriceVal).toLocaleString()}`}
@@ -214,7 +235,7 @@ export function SearchFilters({
                   step="500"
                   value={maxPriceVal}
                   onChange={(event) => setMaxPriceVal(event.target.value)}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-accent"
                 />
               </label>
             </div>
@@ -227,7 +248,7 @@ export function SearchFilters({
             onClick={() => toggleMenu("people")}
             className="h-10 rounded-full border px-4 text-sm"
           >
-            จำนวนคน⌄
+            จำนวนคน<FontAwesomeIcon icon={faAngleDown} />
           </button>
 
           {openMenu === "people" && (
@@ -235,7 +256,7 @@ export function SearchFilters({
               <label className="block text-sm">
                 <div className="mb-2 flex justify-between">
                   <span>จำนวนคนเข้าพัก</span>
-                  <span className="font-semibold text-blue-600">
+                  <span className="font-semibold text-accent">
                     {peopleVal === "0" ? "ไม่กำหนด" : `${peopleVal} คนขึ้นไป`}
                   </span>
                 </div>
@@ -246,7 +267,41 @@ export function SearchFilters({
                   step="1"
                   value={peopleVal}
                   onChange={(event) => setPeopleVal(event.target.value)}
-                  className="w-full accent-blue-600"
+                  className="w-full accent-accent"
+                />
+              </label>
+            </div>
+          )}
+        </div>
+
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => toggleMenu("farsea")}
+            className="h-10 rounded-full border px-4 text-sm"
+          >
+            ระยะทะเล<FontAwesomeIcon icon={faAngleDown} />
+          </button>
+
+          {openMenu === "farsea" && (
+            <div className="absolute z-20 mt-2 w-64 rounded-xl border bg-white p-4 shadow-lg">
+              <label className="block text-sm">
+                <div className="mb-2 flex justify-between">
+                  <span>ห่างจากทะเลไม่เกิน</span>
+                  <span className="font-semibold text-accent">
+                    {maxFarseaVal === "0"
+                      ? "ไม่กำหนด"
+                      : `${maxFarseaVal} กม.`}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="1"
+                  value={maxFarseaVal}
+                  onChange={(event) => setMaxFarseaVal(event.target.value)}
+                  className="w-full accent-accent"
                 />
               </label>
             </div>
@@ -259,7 +314,7 @@ export function SearchFilters({
             onClick={() => toggleMenu("amenities")}
             className="h-10 rounded-full border px-4 text-sm"
           >
-            หมวดหมู่⌄
+            หมวดหมู่<FontAwesomeIcon icon={faAngleDown} />
           </button>
 
           {openMenu === "amenities" && (
@@ -288,7 +343,7 @@ export function SearchFilters({
             onClick={() => toggleMenu("sort")}
             className="h-10 rounded-full border px-4 text-sm"
           >
-            Sort⌄
+            Sort<FontAwesomeIcon icon={faAngleDown} />
           </button>
 
           {openMenu === "sort" && (
@@ -303,12 +358,14 @@ export function SearchFilters({
                 <option value="price_desc">ราคามากไปน้อย</option>
                 <option value="people_asc">จำนวนคนน้อยไปมาก</option>
                 <option value="people_desc">จำนวนคนมากไปน้อย</option>
+                <option value="farsea_asc">ใกล้ทะเลที่สุดก่อน</option>
+                <option value="farsea_desc">ไกลทะเลที่สุดก่อน</option>
               </select>
             </div>
           )}
         </div>
 
-        <button className="h-10 rounded-full bg-black px-5 text-sm text-white">
+        <button className="h-10 rounded-full bg-brand px-5 text-sm text-brand-foreground transition-colors hover:bg-brand/90">
           ค้นหา
         </button>
 

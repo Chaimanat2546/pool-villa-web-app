@@ -20,14 +20,14 @@ async function UserDashboard() {
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           User dashboard
         </p>
-        <h1 className="text-3xl font-bold">User area</h1>
+        <h1 className="text-3xl font-bold text-primary">User area</h1>
       </div>
 
-      <section className="rounded-lg border p-5">
+      <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <p className="text-sm text-muted-foreground">Signed in as</p>
-        <p className="font-medium">{user.email ?? user.id}</p>
+        <p className="font-medium text-primary">{user.email ?? user.id}</p>
         <p className="mt-3 text-sm text-muted-foreground">Role</p>
-        <p className="font-medium">{user.role}</p>
+        <p className="font-medium text-primary">{user.role}</p>
       </section>
     </>
   );

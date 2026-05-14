@@ -2,6 +2,7 @@
 
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import type {
   VillaCalendarDay,
@@ -114,6 +115,11 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
     useState<VillaCalendarDayStatus | null>(null);
   const [detail, setDetail] = useState<VillaCalendarDayDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchCalendar = useCallback(async () => {
     const response = await fetch(
@@ -311,8 +317,10 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
         </div>
       </section>
 
-      {selectedDay !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      {isMounted &&
+        selectedDay !== null &&
+        createPortal(
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[1px]">
           <div className="relative w-full max-w-md rounded-lg border bg-white p-6 shadow-xl">
             <button
               type="button"
@@ -361,8 +369,9 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
               </div>
             )}
           </div>
-        </div>
-      )}
+        </div>,
+          document.body,
+        )}
     </>
   );
 }

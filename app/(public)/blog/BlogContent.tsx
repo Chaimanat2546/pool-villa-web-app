@@ -7,7 +7,7 @@ type BlogContentProps = {
 };
 
 const LINK_CLASS_NAME =
-  "cursor-pointer rounded-sm font-semibold text-sky-700 underline decoration-sky-400 decoration-2 underline-offset-4 transition hover:bg-sky-50 hover:text-sky-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500";
+  "cursor-pointer rounded-sm font-semibold text-secondary underline decoration-accent/40 decoration-2 underline-offset-4 transition hover:bg-secondary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/50";
 
 function getTextMarks(
   text: string,
@@ -66,8 +66,8 @@ function renderNodes(
       const level = node.attrs?.level === 3 ? 3 : 2;
       const className =
         level === 3
-          ? "mt-8 text-2xl font-semibold"
-          : "mt-10 text-3xl font-bold";
+          ? "mt-8 text-2xl font-semibold text-primary"
+          : "mt-10 text-3xl font-bold text-primary";
 
       return level === 3 ? (
         <h3 key={key} className={className}>
