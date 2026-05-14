@@ -5,7 +5,9 @@ import {
   getHousesByIds,
   getNearSeaHouses,
 } from "@/lib/houses";
+import { getPublishedBlogPosts } from "@/lib/blog";
 import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
+import { BlogSection } from "./BlogSection";
 import { HouseSection } from "./HouseSection";
 
 export default function HousesPage() {
@@ -21,9 +23,10 @@ export default function HousesPage() {
 }
 
 async function HouseList() {
-  const [houses, recommendations] = await Promise.all([
+  const [houses, recommendations, blogPosts] = await Promise.all([
     getHouses(),
     getPublicHouseRecommendations(),
+    getPublishedBlogPosts(3),
   ]);
   const recommendedHouses = getHousesByIds(
     houses,
@@ -45,6 +48,8 @@ async function HouseList() {
         title="บ้านพักใกล้ทะเล"
         houses={getNearSeaHouses(houses)}
       />
+
+      <BlogSection posts={blogPosts} />
     </>
   );
 }

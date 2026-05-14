@@ -39,6 +39,12 @@ async function AdminDashboard() {
         >
           บ้านแนะนำ
         </Link>
+        <Link
+          href="/admin/blog"
+          className="ml-3 inline-flex h-9 items-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent"
+        >
+          บทความ
+        </Link>
       </section>
     </>
   );
