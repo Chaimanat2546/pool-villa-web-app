@@ -417,6 +417,14 @@ export function getNearSeaHouses(houses: House[], limit = 12) {
   ).slice(0, limit);
 }
 
+export function getHousesByIds(houses: House[], houseIds: string[]) {
+  const housesById = new Map(houses.map((house) => [house.id, house]));
+
+  return houseIds
+    .map((houseId) => housesById.get(houseId))
+    .filter((house): house is House => house !== undefined);
+}
+
 export function filterHouses(
   houses: House[],
   params: HouseSearchParams,

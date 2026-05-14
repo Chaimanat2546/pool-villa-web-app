@@ -1,5 +1,11 @@
 import { Suspense } from "react";
-import { getBudgetHouses, getHouses, getNearSeaHouses } from "@/lib/houses";
+import {
+  getBudgetHouses,
+  getHouses,
+  getHousesByIds,
+  getNearSeaHouses,
+} from "@/lib/houses";
+import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
 import { HouseSection } from "./HouseSection";
 
 export default function HousesPage() {
@@ -15,18 +21,30 @@ export default function HousesPage() {
 }
 
 async function HouseList() {
-  const houses = await getHouses();
+  const [houses, recommendations] = await Promise.all([
+    getHouses(),
+    getPublicHouseRecommendations(),
+  ]);
+  const recommendedHouses = getHousesByIds(
+    houses,
+    recommendations.map((recommendation) => recommendation.hId),
+  );
 
   return (
     <>
-      <HouseSection title="บ้านแนะนำ" houses={houses.slice(0, 12)} />
+      {recommendedHouses.length > 0 && (
+        <HouseSection title="บ้านแนะนำ" houses={recommendedHouses} />
+      )}
 
       <HouseSection
         title="บ้านพักราคาประหยัด"
         houses={getBudgetHouses(houses)}
       />
 
-      <HouseSection title="บ้านพักใกล้ทะเล" houses={getNearSeaHouses(houses)} />
+      <HouseSection
+        title="บ้านพักใกล้ทะเล"
+        houses={getNearSeaHouses(houses)}
+      />
     </>
   );
 }
