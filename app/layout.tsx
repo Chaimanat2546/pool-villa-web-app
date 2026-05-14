@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { IBM_Plex_Sans_Thai } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import "@fortawesome/fontawesome-svg-core/styles.css";
+import { config } from "@fortawesome/fontawesome-svg-core";
+import { Suspense } from "react";
+import { SiteNavbar } from "@/components/site-navbar";
 import "./globals.css";
+
+config.autoAddCss = false;
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -9,14 +15,15 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Pool Villa Pattaya",
+  description: "ค้นหาและเปรียบเทียบบ้านพักพูลวิลล่า",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const ibmPlexSansThai = IBM_Plex_Sans_Thai({
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
+  subsets: ["thai", "latin"],
   display: "swap",
-  subsets: ["latin"],
+  variable: "--font-ibm-plex-sans-thai",
 });
 
 export default function RootLayout({
@@ -25,14 +32,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+    <html lang="th" suppressHydrationWarning>
+      <body className={`${ibmPlexSansThai.className} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
+          <Suspense
+            fallback={
+              <div className="h-16 border-b border-border bg-background" />
+            }
+          >
+            <SiteNavbar />
+          </Suspense>
           {children}
         </ThemeProvider>
       </body>

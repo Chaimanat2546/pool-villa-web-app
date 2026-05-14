@@ -62,7 +62,7 @@ export function HouseCarousel({ children }: HouseCarouselProps) {
             onMouseUp={stopDragging}
             onMouseLeave={stopDragging}
             onClickCapture={handleClickCapture}
-            className="flex cursor-grab select-none gap-4 overflow-x-auto scroll-smooth pb-4 active:cursor-grabbing"
+            className="flex cursor-grab select-none items-stretch snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth px-px py-2 pb-4 active:cursor-grabbing [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
             {children}
         </div>
