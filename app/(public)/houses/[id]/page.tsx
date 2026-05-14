@@ -8,6 +8,7 @@ import {
   type House,
 } from "@/lib/houses";
 import { HouseImageGallery } from "./HouseImageGallery";
+import { VillaCalendar } from "./VillaCalendar";
 
 type PageProps = {
   params: Promise<{
@@ -71,12 +72,22 @@ async function HouseDetail({ params }: PageProps) {
         imageGroups={imageGroups}
       />
 
-      <div className="space-y-2 text-lg">
-        {getDetailRows(house).map((row) => (
-          <p key={row.label}>
-            {row.label}: {row.value}
-          </p>
-        ))}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <section className="rounded-lg border bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-xl font-bold">รายละเอียดบ้านพัก</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {getDetailRows(house).map((row) => (
+              <div key={row.label} className="rounded-md bg-slate-50 p-3">
+                <p className="text-sm text-muted-foreground">{row.label}</p>
+                <p className="mt-1 font-semibold text-slate-900">
+                  {row.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <VillaCalendar villaId={house.id} />
       </div>
     </>
   );

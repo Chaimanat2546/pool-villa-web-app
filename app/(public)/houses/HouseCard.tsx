@@ -6,6 +6,30 @@ type HouseCardProps = {
   house: HouseCardData;
 };
 
+function calculateCommission(price: string) {
+  const priceNum = parseInt(price);
+  const last3 = priceNum % 1000;
+  if (priceNum <= 28000) {
+    if (last3 === 500) {
+      return priceNum + 1400;
+    } else {
+      return priceNum + 1900;
+    }
+  } else if (priceNum > 28000 && priceNum <= 47000) {
+    if (last3 === 500) {
+      return priceNum + 2400;
+    } else {
+      return priceNum + 2900;
+    }
+  } else if (priceNum > 47000) {
+    if (last3 === 500) {
+      return priceNum + 3400;
+    } else {
+      return priceNum + 3900;
+    }
+  }
+}
+
 export function HouseCard({ house }: HouseCardProps) {
   return (
     <Link
@@ -33,7 +57,7 @@ export function HouseCard({ house }: HouseCardProps) {
         <p className="text-sm text-gray-500">
           {formatSeaDistance(house.farsea)}
         </p>
-        <p className="text-sm text-gray-500">ราคา: {house.price}</p>
+        <p className="text-sm text-gray-500">ราคา: {calculateCommission(house.price)}</p>
       </article>
     </Link>
   );

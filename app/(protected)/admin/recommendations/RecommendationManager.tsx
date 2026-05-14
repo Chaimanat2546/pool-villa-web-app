@@ -1,13 +1,12 @@
 "use client";
 
-import { Eye, EyeOff, Plus, Save, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   HouseRecommendation,
   HouseRecommendationStatus,
 } from "@/lib/house-recommendations";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,14 +87,6 @@ export function RecommendationManager({
   useEffect(() => {
     setDrafts(createDraftMap(recommendations));
   }, [recommendations]);
-
-  const visibleHouseIds = useMemo(
-    () =>
-      recommendations
-        .filter((recommendation) => recommendation.status === "visible")
-        .map((recommendation) => recommendation.hId),
-    [recommendations],
-  );
 
   function refresh() {
     startTransition(() => {
@@ -277,7 +268,7 @@ export function RecommendationManager({
           </p>
         ) : (
           <div className="divide-y">
-            {recommendations.sort((a, b) => {
+            {[...recommendations].sort((a, b) => {
               const draftA = drafts[a.id];
               const draftB = drafts[b.id];
 
