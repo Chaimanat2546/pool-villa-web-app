@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 
 export default function AdminBlogPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 p-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
             Admin dashboard
           </p>
-          <h1 className="text-3xl font-bold">บทความ</h1>
+          <h1 className="text-3xl font-bold text-primary">บทความ</h1>
         </div>
 
         <Button asChild>
@@ -23,7 +23,7 @@ export default function AdminBlogPage() {
       <Suspense fallback={<p>Loading blog posts...</p>}>
         <AdminBlogList />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
@@ -36,14 +36,14 @@ async function AdminBlogList() {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
-      <div className="grid min-w-[680px] grid-cols-[1fr_140px_160px] gap-3 border-b bg-muted/40 px-4 py-3 text-sm font-medium text-muted-foreground">
+    <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+      <div className="grid min-w-[680px] grid-cols-[1fr_140px_160px] gap-3 border-b border-border bg-muted/40 px-4 py-3 text-sm font-medium text-muted-foreground">
         <span>บทความ</span>
         <span>รหัส</span>
         <span className="text-right">จัดการ</span>
       </div>
 
-      <div className="divide-y">
+      <div className="divide-y divide-border">
         {posts.map((post) => (
           <div
             key={post.id}

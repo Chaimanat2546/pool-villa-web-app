@@ -6,7 +6,7 @@ export type HouseRecommendation = {
   id: string;
   hId: string;
   startsAt: string;
-  endsAt: string;
+  endsAt: string | null;
   status: HouseRecommendationStatus;
   createdBy: string | null;
   createdAt: string;
@@ -17,7 +17,7 @@ export type HouseRecommendationApiData = {
   id: string;
   h_id: string;
   starts_at: string;
-  ends_at: string;
+  ends_at: string | null;
   status: HouseRecommendationStatus;
   created_by: string | null;
   created_at: string;
@@ -27,7 +27,7 @@ export type HouseRecommendationApiData = {
 export type HouseRecommendationInput = {
   hId: string;
   startsAt: string;
-  endsAt: string;
+  endsAt: string | null;
   status: HouseRecommendationStatus;
 };
 
@@ -35,7 +35,7 @@ type HouseRecommendationRow = {
   id: string;
   h_id: string;
   starts_at: string;
-  ends_at: string;
+  ends_at: string | null;
   status: HouseRecommendationStatus;
   created_by: string | null;
   created_at: string;
@@ -92,6 +92,14 @@ function parseDate(value: unknown, fieldName: string) {
   return { ok: true as const, value };
 }
 
+function parseOptionalDate(value: unknown, fieldName: string) {
+  if (value === null || value === undefined || value === "") {
+    return { ok: true as const, value: null };
+  }
+
+  return parseDate(value, fieldName);
+}
+
 export function parseHouseRecommendationInput(value: unknown): ParsedInput {
   if (!value || typeof value !== "object") {
     return { ok: false, error: "Invalid recommendation payload." };
@@ -100,7 +108,7 @@ export function parseHouseRecommendationInput(value: unknown): ParsedInput {
   const body = value as Record<string, unknown>;
   const hId = typeof body.h_id === "string" ? body.h_id.trim() : "";
   const startsAt = parseDate(body.starts_at, "starts_at");
-  const endsAt = parseDate(body.ends_at, "ends_at");
+  const endsAt = parseOptionalDate(body.ends_at, "ends_at");
   const status = body.status;
 
   if (!hId) {
@@ -110,7 +118,7 @@ export function parseHouseRecommendationInput(value: unknown): ParsedInput {
   if (!startsAt.ok) return { ok: false, error: startsAt.error };
   if (!endsAt.ok) return { ok: false, error: endsAt.error };
 
-  if (endsAt.value < startsAt.value) {
+  if (endsAt.value !== null && endsAt.value < startsAt.value) {
     return { ok: false, error: "ends_at must be after starts_at." };
   }
 
@@ -150,7 +158,7 @@ export async function getPublicHouseRecommendations() {
     .select("*")
     .eq("status", "visible")
     .lte("starts_at", today)
-    .gte("ends_at", today)
+    .or(`ends_at.is.null,ends_at.gte.${today}`)
     .order("starts_at", { ascending: false })
     .returns<HouseRecommendationRow[]>();
 

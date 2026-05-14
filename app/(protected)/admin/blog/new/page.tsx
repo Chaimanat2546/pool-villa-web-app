@@ -4,7 +4,7 @@ import { BlogPostForm } from "../BlogPostForm";
 
 export default function NewBlogPostPage() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <div>
         <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
           Admin dashboard
@@ -15,7 +15,7 @@ export default function NewBlogPostPage() {
       <Suspense fallback={<p>Loading editor...</p>}>
         <NewBlogPost />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

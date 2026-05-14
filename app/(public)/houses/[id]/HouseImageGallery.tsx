@@ -51,6 +51,7 @@ function GalleryTile({
   return (
     <div className={`relative overflow-hidden bg-stone-100 ${className}`}>
       <Image
+        loading="eager"
         src={src}
         alt={alt}
         fill
@@ -82,11 +83,10 @@ function ZoneTabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-        isActive
-          ? "bg-stone-950 text-white shadow-sm"
-          : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-      }`}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${isActive
+        ? "bg-stone-950 text-white shadow-sm"
+        : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+        }`}
     >
       {label}
       <span

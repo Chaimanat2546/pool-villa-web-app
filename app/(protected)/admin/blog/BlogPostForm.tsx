@@ -456,7 +456,7 @@ export function BlogPostForm({ post }: BlogPostFormProps) {
       </div>
 
       {feedback && <p className="text-sm text-green-700">{feedback}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Button type="submit" disabled={isPending}>
         <Save aria-hidden="true" />

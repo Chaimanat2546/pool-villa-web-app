@@ -8,7 +8,7 @@ const COVER_IMAGE_BASE_URL =
   "https://www.devillegroups.com/imgs/profile_imgs_large";
 
 const BUDGET_MAX_PRICE = 7000;
-const NEAR_SEA_MAX_DISTANCE = 4;
+const NEAR_SEA_MAX_DISTANCE = 5;
 const INACTIVE_MIN_PRICE = "0";
 const INACTIVE_MAX_PRICE = "30000";
 const INACTIVE_PEOPLE = "0";
@@ -110,8 +110,10 @@ export type HouseSearchParams = {
   q?: string;
   minPrice?: string;
   maxPrice?: string;
+  maxFarsea?: string;
   people?: string;
   sort?: string;
+  recommended?: string;
   farsea?: string;
   wifi?: string;
   grill?: string;
@@ -376,6 +378,36 @@ export function toNumber(value: string | null | undefined) {
   return Number.isNaN(number) ? null : number;
 }
 
+export function parseSeaDistanceKm(value: string | null | undefined) {
+  if (!value) return null;
+
+  const text = value.trim().toLowerCase();
+
+  if (!text) return null;
+
+  if (text.includes("ติดทะเล")) {
+    return 0;
+  }
+
+  const numberMatch = text.match(/\d+(?:[.,]\d+)?/);
+
+  if (!numberMatch) return null;
+
+  const rawNumber = Number(numberMatch[0].replace(",", "."));
+
+  if (Number.isNaN(rawNumber)) return null;
+
+  const isKilometer =
+    text.includes("กิโล") ||
+    /ก\s*\.?\s*ม/.test(text) ||
+    /\bkm\.?\b/.test(text);
+  const isMeter =
+    !isKilometer &&
+    (text.includes("เมตร") || /\d\s*ม\.?(?:\s|$)/.test(text));
+
+  return isMeter ? rawNumber / 1000 : rawNumber;
+}
+
 function getActiveNumber(value: string | undefined, inactiveValue?: string) {
   if (!value || value === inactiveValue) return null;
 
@@ -384,12 +416,28 @@ function getActiveNumber(value: string | undefined, inactiveValue?: string) {
 
 function sortByNumber(
   houses: House[],
-  field: "price" | "people" | "farsea",
+  field: "price" | "people",
   direction: "asc" | "desc" = "asc",
 ) {
   return houses.sort((a, b) => {
     const valueA = toNumber(a[field]) ?? 0;
     const valueB = toNumber(b[field]) ?? 0;
+
+    return direction === "asc" ? valueA - valueB : valueB - valueA;
+  });
+}
+
+function sortBySeaDistance(
+  houses: House[],
+  direction: "asc" | "desc" = "asc",
+) {
+  return houses.sort((a, b) => {
+    const valueA = parseSeaDistanceKm(a.farsea);
+    const valueB = parseSeaDistanceKm(b.farsea);
+
+    if (valueA === null && valueB === null) return 0;
+    if (valueA === null) return 1;
+    if (valueB === null) return -1;
 
     return direction === "asc" ? valueA - valueB : valueB - valueA;
   });
@@ -407,13 +455,12 @@ export function getBudgetHouses(houses: House[], limit = 12) {
 }
 
 export function getNearSeaHouses(houses: House[], limit = 12) {
-  return sortByNumber(
+  return sortBySeaDistance(
     houses.filter((house) => {
-      const farsea = toNumber(house.farsea);
+      const farsea = parseSeaDistanceKm(house.farsea);
 
       return farsea !== null && farsea <= NEAR_SEA_MAX_DISTANCE;
     }),
-    "farsea",
   ).slice(0, limit);
 }
 
@@ -425,30 +472,60 @@ export function getHousesByIds(houses: House[], houseIds: string[]) {
     .filter((house): house is House => house !== undefined);
 }
 
+function getQueryHouseIds(query: string) {
+  return query
+    .match(/(?:dv[-\s]*)?\d+/g)
+    ?.map((value) => value.replace(/\D/g, ""))
+    .filter(Boolean);
+}
+
+function matchesHouseQuery(
+  house: House,
+  query: string,
+  queryHouseIds: Set<string> | null,
+) {
+  if (!query) return true;
+
+  if (queryHouseIds) {
+    return queryHouseIds.has(house.id);
+  }
+
+  return (
+    house.id.toLowerCase().includes(query) ||
+    `dv-${house.id}`.toLowerCase().includes(query)
+  );
+}
+
 export function filterHouses(
   houses: House[],
   params: HouseSearchParams,
 ): House[] {
   const query = params.q?.trim().toLowerCase() ?? "";
+  const queryHouseIds = getQueryHouseIds(query);
+  const queryHouseIdSet = queryHouseIds?.length
+    ? new Set(queryHouseIds)
+    : null;
   const minPrice = getActiveNumber(params.minPrice, INACTIVE_MIN_PRICE);
   const maxPrice = getActiveNumber(params.maxPrice, INACTIVE_MAX_PRICE);
+  const maxFarsea = getActiveNumber(params.maxFarsea);
   const selectedPeople = getActiveNumber(params.people, INACTIVE_PEOPLE);
   const sort = params.sort ?? "";
 
   const filteredHouses = houses.filter((house) => {
     const price = toNumber(house.price);
     const people = toNumber(house.people);
+    const farsea = parseSeaDistanceKm(house.farsea);
 
-    const matchesQuery =
-      !query ||
-      house.id.toLowerCase().includes(query) ||
-      `dv-${house.id}`.toLowerCase().includes(query);
+    const matchesQuery = matchesHouseQuery(house, query, queryHouseIdSet);
 
     const matchesMinPrice =
       minPrice === null || (price !== null && price >= minPrice);
 
     const matchesMaxPrice =
       maxPrice === null || (price !== null && price <= maxPrice);
+
+    const matchesMaxFarsea =
+      maxFarsea === null || (farsea !== null && farsea <= maxFarsea);
 
     const matchesPeople =
       selectedPeople === null || (people !== null && people >= selectedPeople);
@@ -461,6 +538,7 @@ export function filterHouses(
       matchesQuery &&
       matchesMinPrice &&
       matchesMaxPrice &&
+      matchesMaxFarsea &&
       matchesPeople &&
       matchesAmenities
     );
@@ -482,14 +560,67 @@ export function filterHouses(
     return sortByNumber(filteredHouses, "people", "desc");
   }
 
+  if (sort === "farsea_asc") {
+    return sortBySeaDistance(filteredHouses);
+  }
+
+  if (sort === "farsea_desc") {
+    return sortBySeaDistance(filteredHouses, "desc");
+  }
+
   return filteredHouses;
 }
 
+export function getDisplayNightlyPrice(price: string | null | undefined) {
+  const priceNum = Number.parseInt(price ?? "", 10);
+
+  if (!Number.isFinite(priceNum)) {
+    return null;
+  }
+
+  const last3 = priceNum % 1000;
+  const commission =
+    priceNum <= 28000
+      ? last3 === 500
+        ? 1400
+        : 1900
+      : priceNum <= 47000
+        ? last3 === 500
+          ? 2400
+          : 2900
+        : last3 === 500
+          ? 3400
+          : 3900;
+
+  return priceNum + commission;
+}
+
 export function formatSeaDistance(farsea: string | null | undefined) {
-  const distance = toNumber(farsea);
+  if (!farsea || farsea.trim() === "") {
+    return "ไม่ระบุระยะห่างจากทะเล";
+  }
 
-  if (distance === null) return "ไม่มีข้อมูลระยะห่างจากทะเล";
-  if (distance === 0) return "ติดทะเล";
+  const text = farsea.trim().toLowerCase();
 
-  return `ห่างจากทะเล ${farsea}`;
+  if (text.includes("ติดทะเล")) {
+    return "ติดทะเล";
+  }
+
+  const distanceKm = parseSeaDistanceKm(farsea);
+
+  if (distanceKm === null) {
+    return "ไม่ระบุระยะห่างจากทะเล";
+  }
+
+  if (distanceKm <= 1) {
+    return "ห่างจากทะเลไม่เกิน 1 กม.";
+  }
+
+  // format เลข
+  const formatted =
+    distanceKm % 1 === 0
+      ? distanceKm.toFixed(0)
+      : distanceKm.toFixed(1);
+
+  return `ห่างจากทะเลไม่เกิน ${formatted} กม.`;
 }
