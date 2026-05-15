@@ -264,6 +264,7 @@ export type AdminHouseSettingsData = AdminHouseCreateOptions & {
 export type AdminHouseWeekdayPriceInput = {
   weekday: number;
   price: number;
+  agencyPrice: number | null;
   note: string | null;
 };
 
@@ -273,6 +274,7 @@ export type AdminHouseCreateInput = {
   accommodationAreaId: string;
   accommodationTypeId: string;
   normalPrice: number;
+  normalAgencyPrice: number | null;
   bathroomCount: number;
   bedroomCount: number;
   guestCapacity: number;
@@ -322,6 +324,7 @@ export type AdminHouseDatePriceInput = {
   stayDate: string;
   priceType: AdminHouseDatePriceType;
   price: number;
+  agencyPrice: number | null;
   note: string | null;
   isActive: boolean;
 };
@@ -428,12 +431,14 @@ type AdminHouseEditRow = {
   }>;
   pricing?: RelatedValue<{
     normal_price: number | string | null;
+    normal_agency_price: number | string | null;
     extra_guest_price: number | string | null;
     security_deposit_amount: number | string | null;
   }>;
   weekday_prices?: Array<{
     weekday: number;
     price: number | string | null;
+    agency_price: number | string | null;
     note: string | null;
   }> | null;
   pool?: RelatedValue<{
@@ -458,6 +463,7 @@ type AdminHouseEditRow = {
     stay_date: string;
     price_type: AdminHouseDatePriceType;
     price: number | string | null;
+    agency_price: number | string | null;
     note: string | null;
     is_active: boolean;
   }> | null;
@@ -533,12 +539,14 @@ const ADMIN_HOUSE_EDIT_SELECT = `
   ),
   pricing:accommodation_pricing(
     normal_price,
+    normal_agency_price,
     extra_guest_price,
     security_deposit_amount
   ),
   weekday_prices:accommodation_weekday_prices(
     weekday,
     price,
+    agency_price,
     note
   ),
   pool:pool_details(
@@ -561,6 +569,7 @@ const ADMIN_HOUSE_EDIT_SELECT = `
     stay_date,
     price_type,
     price,
+    agency_price,
     note,
     is_active
   )
@@ -662,6 +671,7 @@ function mapAdminHouseEditData(row: AdminHouseEditRow): AdminHouseEditData {
     accommodationAreaId: row.accommodation_area_id,
     accommodationTypeId: row.accommodation_type_id,
     normalPrice: toOptionalNumber(pricing?.normal_price) ?? 0,
+    normalAgencyPrice: toOptionalNumber(pricing?.normal_agency_price),
     bathroomCount: capacity?.bathroom_count ?? 0,
     bedroomCount: capacity?.bedroom_count ?? 0,
     guestCapacity: capacity?.guest_capacity ?? 1,
@@ -683,6 +693,7 @@ function mapAdminHouseEditData(row: AdminHouseEditRow): AdminHouseEditData {
       .map((weekdayPrice) => ({
         weekday: weekdayPrice.weekday,
         price: toOptionalNumber(weekdayPrice.price) ?? 0,
+        agencyPrice: toOptionalNumber(weekdayPrice.agency_price),
         note: weekdayPrice.note,
       }))
       .sort((a, b) => a.weekday - b.weekday),
@@ -703,6 +714,7 @@ function mapAdminHouseEditData(row: AdminHouseEditRow): AdminHouseEditData {
         stayDate: datePrice.stay_date,
         priceType: datePrice.price_type,
         price: toOptionalNumber(datePrice.price) ?? 0,
+        agencyPrice: toOptionalNumber(datePrice.agency_price),
         note: datePrice.note,
         isActive: datePrice.is_active,
       }))
@@ -1052,9 +1064,15 @@ function parseWeekdayPrices(value: unknown) {
       required: true,
       min: 0,
     });
+    const agencyPrice = parseNumberInput(row.agency_price, "weekday agency price", {
+      required: false,
+      min: 0,
+    });
 
     if (!weekday.ok) return { ok: false as const, error: weekday.error };
     if (!price.ok) return { ok: false as const, error: price.error };
+    if (!agencyPrice.ok) return { ok: false as const, error: agencyPrice.error };
+
     if (weekday.value === null || weekday.value > 7) {
       return {
         ok: false as const,
@@ -1073,6 +1091,7 @@ function parseWeekdayPrices(value: unknown) {
     weekdayPrices.push({
       weekday: weekday.value,
       price: price.value ?? 0,
+      agencyPrice: agencyPrice.value,
       note: getOptionalTrimmedString(row.note),
     });
   }
@@ -1102,6 +1121,11 @@ export function parseAdminHouseCreateInput(
     required: true,
     min: 0,
   });
+  const normalAgencyPrice = parseNumberInput(
+    body.normal_agency_price,
+    "normal_agency_price",
+    { required: false, min: 0 },
+  );
   const bathroomCount = parseNumberInput(
     body.bathroom_count,
     "bathroom_count",
@@ -1150,6 +1174,9 @@ export function parseAdminHouseCreateInput(
     return { ok: false, error: accommodationTypeId.error };
   }
   if (!normalPrice.ok) return { ok: false, error: normalPrice.error };
+  if (!normalAgencyPrice.ok) {
+    return { ok: false, error: normalAgencyPrice.error };
+  }
   if (!bathroomCount.ok) return { ok: false, error: bathroomCount.error };
   if (!bedroomCount.ok) return { ok: false, error: bedroomCount.error };
   if (!guestCapacity.ok) return { ok: false, error: guestCapacity.error };
@@ -1184,6 +1211,7 @@ export function parseAdminHouseCreateInput(
       accommodationAreaId: accommodationAreaId.value,
       accommodationTypeId: accommodationTypeId.value,
       normalPrice: normalPrice.value ?? 0,
+      normalAgencyPrice: normalAgencyPrice.value,
       bathroomCount: bathroomCount.value ?? 0,
       bedroomCount: bedroomCount.value ?? 0,
       guestCapacity: guestCapacity.value ?? 1,
@@ -1303,6 +1331,10 @@ function parseDatePrices(value: unknown) {
       required: true,
       min: 0,
     });
+    const agencyPrice = parseNumberInput(row.agency_price, "date agency price", {
+      required: false,
+      min: 0,
+    });
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(stayDate)) {
       return { ok: false as const, error: "stay_date must be YYYY-MM-DD." };
@@ -1316,6 +1348,7 @@ function parseDatePrices(value: unknown) {
     }
 
     if (!price.ok) return { ok: false as const, error: price.error };
+    if (!agencyPrice.ok) return { ok: false as const, error: agencyPrice.error };
 
     const key = `${stayDate}:${priceType}`;
     if (usedDatePrices.has(key)) {
@@ -1330,6 +1363,7 @@ function parseDatePrices(value: unknown) {
       stayDate,
       priceType,
       price: price.value ?? 0,
+      agencyPrice: agencyPrice.value,
       note: getOptionalTrimmedString(row.note),
       isActive: parseBooleanInput(row.is_active, true),
     });
@@ -1416,6 +1450,7 @@ export async function createAdminHouse(input: AdminHouseCreateInput) {
     p_accommodation_area_id: input.accommodationAreaId,
     p_accommodation_type_id: input.accommodationTypeId,
     p_normal_price: input.normalPrice,
+    p_normal_agency_price: input.normalAgencyPrice,
     p_bathroom_count: input.bathroomCount,
     p_bedroom_count: input.bedroomCount,
     p_guest_capacity: input.guestCapacity,
@@ -1431,7 +1466,12 @@ export async function createAdminHouse(input: AdminHouseCreateInput) {
     p_bedroom_details: input.bedroomDetails,
     p_extra_guest_price: input.extraGuestPrice,
     p_security_deposit_amount: input.securityDepositAmount,
-    p_weekday_prices: input.weekdayPrices,
+    p_weekday_prices: input.weekdayPrices.map((wp) => ({
+      weekday: wp.weekday,
+      price: wp.price,
+      agency_price: wp.agencyPrice,
+      note: wp.note,
+    })),
   });
 
   if (error) {
@@ -1458,6 +1498,7 @@ export async function updateAdminHouse(
     p_accommodation_area_id: input.accommodationAreaId,
     p_accommodation_type_id: input.accommodationTypeId,
     p_normal_price: input.normalPrice,
+    p_normal_agency_price: input.normalAgencyPrice,
     p_bathroom_count: input.bathroomCount,
     p_bedroom_count: input.bedroomCount,
     p_guest_capacity: input.guestCapacity,
@@ -1473,7 +1514,12 @@ export async function updateAdminHouse(
     p_bedroom_details: input.bedroomDetails,
     p_extra_guest_price: input.extraGuestPrice,
     p_security_deposit_amount: input.securityDepositAmount,
-    p_weekday_prices: input.weekdayPrices,
+    p_weekday_prices: input.weekdayPrices.map((wp) => ({
+      weekday: wp.weekday,
+      price: wp.price,
+      agency_price: wp.agencyPrice,
+      note: wp.note,
+    })),
     p_pool_type: input.poolType,
     p_pool_system: input.poolSystem,
     p_pool_description: input.poolDescription,
@@ -1490,6 +1536,7 @@ export async function updateAdminHouse(
       stay_date: datePrice.stayDate,
       price_type: datePrice.priceType,
       price: datePrice.price,
+      agency_price: datePrice.agencyPrice,
       note: datePrice.note,
       is_active: datePrice.isActive,
     })),
