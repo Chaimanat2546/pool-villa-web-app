@@ -1,3 +1,4 @@
+﻿export const runtime = "nodejs";
 import { connection, NextResponse } from "next/server";
 import {
   getVillaCalendarMonth,
@@ -40,3 +41,4 @@ export async function GET(request: Request) {
     );
   }
 }
+

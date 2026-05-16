@@ -1,0 +1,32 @@
+name: Auto PR (Master -> Release)
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+    types: [closed]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-pr-release:
+    # Run if it's a direct push to master OR if a PR was successfully merged into master
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create PR to release
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          gh pr create \
+            --base release \
+            --head master \
+            --title "📦 Release Candidate: master -> release" \
+            --body "Automated Pull Request from master to release. Please review and merge manually to deploy to production." || echo "PR already exists or no changes"

@@ -1,3 +1,4 @@
+﻿export const runtime = 'edge';
 import { connection, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/api";
 import { getHouseById } from "@/lib/houses";
@@ -73,3 +74,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

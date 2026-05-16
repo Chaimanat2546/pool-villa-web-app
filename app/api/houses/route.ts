@@ -1,3 +1,4 @@
+﻿export const runtime = 'edge';
 import { connection, NextResponse } from "next/server";
 import { getHouses, toHouseApiData } from "@/lib/houses";
 
@@ -19,3 +20,4 @@ export async function GET() {
     );
   }
 }
+

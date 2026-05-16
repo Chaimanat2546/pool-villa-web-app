@@ -1,3 +1,4 @@
+﻿export const runtime = 'edge';
 import { createClient } from "@/lib/supabase/server";
 import { type EmailOtpType } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
@@ -28,3 +29,4 @@ export async function GET(request: NextRequest) {
   // redirect the user to an error page with some instructions
   redirect(`/auth/error?error=No token hash or type`);
 }
+

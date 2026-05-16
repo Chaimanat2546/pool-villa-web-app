@@ -1,3 +1,4 @@
+﻿export const runtime = "nodejs";
 import { connection, NextResponse } from "next/server";
 import {
   getVillaCalendarDayDetail,
@@ -38,3 +39,4 @@ export async function GET(request: Request) {
     );
   }
 }
+

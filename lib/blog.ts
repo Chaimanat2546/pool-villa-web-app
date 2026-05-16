@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 
 export type BlogContentNode = {
@@ -73,7 +72,7 @@ const BLOG_CODE_SUFFIX_PATTERN = /(?:^|-)i\.([a-zA-Z0-9_-]+)$/;
 const MAX_CREATE_ATTEMPTS = 5;
 
 export function createRandomBlogCode() {
-  return `pv${randomUUID().replace(/-/g, "").slice(0, 8)}`;
+  return `pv${crypto.randomUUID().replace(/-/g, "").slice(0, 8)}`;
 }
 
 export function toBlogTitleSlug(value: string) {

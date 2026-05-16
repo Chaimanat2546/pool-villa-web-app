@@ -1,31 +1,18 @@
-import type { Browser, Page } from "puppeteer";
+export type {
+  VillaCalendarDayStatus,
+  VillaCalendarDay,
+  VillaCalendarMonth,
+  VillaCalendarDayDetail,
+} from "./villa-calendar-types";
 
-export type VillaCalendarDayStatus =
-  | "available"
-  | "booked"
-  | "pending"
-  | "holiday"
-  | "special"
-  | "disabled";
+import type {
+  VillaCalendarDayStatus,
+  VillaCalendarMonth,
+  VillaCalendarDayDetail,
+} from "./villa-calendar-types";
 
-export type VillaCalendarDay = {
-  day: number;
-  status: VillaCalendarDayStatus;
-};
-
-export type VillaCalendarMonth = {
-  month: string;
-  firstDayIndex: number;
-  days: VillaCalendarDay[];
-  offset: number;
-};
-
-export type VillaCalendarDayDetail = {
-  title?: string;
-  price?: string;
-  type?: string;
-  capacity?: string;
-};
+type Browser = import("puppeteer-core").Browser;
+type Page = import("puppeteer-core").Page;
 
 const VILLA_CALENDAR_BASE_URL = "https://www.pattayapartypoolvilla.com/v";
 const CALENDAR_SELECTOR = "#calendarBooking";
@@ -72,11 +59,28 @@ function getDayCacheKey(villaId: string, offset: number, day: number) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    const puppeteer = await import("puppeteer");
-    browserPromise = puppeteer.default.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browserPromise = (async () => {
+      const [{ default: puppeteer }, { default: chromium }] = await Promise.all([
+        import("puppeteer-core"),
+        import("@sparticuz/chromium"),
+      ]);
+      const headless = "shell";
+
+      chromium.setGraphicsMode = false;
+
+      return puppeteer.launch({
+        args: await puppeteer.defaultArgs({
+          args: chromium.args,
+          headless,
+        }),
+        defaultViewport: {
+          width: 1280,
+          height: 720,
+        },
+        executablePath: await chromium.executablePath(),
+        headless,
+      });
+    })();
   }
 
   return browserPromise;
@@ -109,14 +113,14 @@ async function moveCalendarOffset(page: Page, offset: number) {
   for (let index = 0; index < Math.abs(offset); index++) {
     const oldMonth = await page.$eval(
       MONTH_SELECTOR,
-      (element) => element.textContent?.trim() || "",
+      (element: Element) => element.textContent?.trim() || "",
     );
     const buttons = await page.$$(`${CALENDAR_SELECTOR} button`);
     let targetButton = null;
 
     for (const button of buttons) {
       const text = await page.evaluate(
-        (element) => element.textContent?.trim() || "",
+        (element: Element) => element.textContent?.trim() || "",
         button,
       );
 
@@ -137,7 +141,7 @@ async function moveCalendarOffset(page: Page, offset: number) {
 
     await targetButton.click();
     await page.waitForFunction(
-      (previousMonth) => {
+      (previousMonth: string) => {
         const element = document.querySelector("#calendarBooking .text-xl.font-bold");
 
         return element?.textContent?.trim() !== previousMonth;
@@ -164,9 +168,9 @@ export async function getVillaCalendarMonth(
   try {
     const month = await page.$eval(
       MONTH_SELECTOR,
-      (element) => element.textContent?.trim() || "",
+      (element: Element) => element.textContent?.trim() || "",
     );
-    const firstDayIndex = await page.$$eval(DAY_CELL_SELECTOR, (elements) => {
+    const firstDayIndex = await page.$$eval(DAY_CELL_SELECTOR, (elements: Element[]) => {
       let count = 0;
 
       for (const element of elements) {
@@ -179,7 +183,7 @@ export async function getVillaCalendarMonth(
 
       return count;
     });
-    const days = await page.$$eval(DAY_CELL_SELECTOR, (elements) => {
+    const days = await page.$$eval(DAY_CELL_SELECTOR, (elements: Element[]) => {
       const seen = new Map<number, VillaCalendarDayStatus>();
       const statusRank: Record<VillaCalendarDayStatus, number> = {
         disabled: 0,
@@ -266,7 +270,7 @@ export async function getVillaCalendarDayDetail(
 
     for (const cell of cells) {
       const text = await page.evaluate(
-        (element) => element.textContent?.trim() || "",
+        (element: Element) => element.textContent?.trim() || "",
         cell,
       );
       const match = text.match(/\d+/);
