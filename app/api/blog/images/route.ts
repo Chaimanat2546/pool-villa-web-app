@@ -1,3 +1,4 @@
+﻿export const runtime = 'edge';
 import { randomUUID } from "crypto";
 import { connection, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/api";
@@ -116,3 +117,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

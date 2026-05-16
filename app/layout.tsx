@@ -1,3 +1,4 @@
+﻿export const runtime = 'edge';
 import type { Metadata } from "next";
 import { IBM_Plex_Sans_Thai } from "next/font/google";
 import { ThemeProvider } from "next-themes";
@@ -53,3 +54,4 @@ export default function RootLayout({
     </html>
   );
 }
+
