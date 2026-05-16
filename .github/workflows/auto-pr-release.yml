@@ -29,4 +29,4 @@ jobs:
             --base release \
             --head master \
             --title "📦 Release Candidate: master -> release" \
-            --body "Automated Pull Request from master to release. Please review and merge manually to deploy to production." || echo "PR already exists or no changes"
+            --body "Automated Pull Request from master to release. Please review and merge manually." || echo "PR already exists or no changes"
