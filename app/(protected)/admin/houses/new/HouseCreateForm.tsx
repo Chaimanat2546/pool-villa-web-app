@@ -38,6 +38,7 @@ type DatePriceDraft = {
   stayDate: string;
   priceType: "special" | "holiday";
   price: string;
+  agencyPrice: string;
   note: string;
   isActive: boolean;
 };
@@ -149,6 +150,7 @@ function getInitialDatePrices(house: AdminHouseEditData | undefined) {
       stayDate: datePrice.stayDate,
       priceType: datePrice.priceType,
       price: String(datePrice.price),
+      agencyPrice: String(datePrice.agencyPrice ?? ""),
       note: datePrice.note ?? "",
       isActive: datePrice.isActive,
     })) ?? []
