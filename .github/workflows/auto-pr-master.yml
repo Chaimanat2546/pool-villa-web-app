@@ -1,0 +1,38 @@
+name: Auto PR & Merge (Develop -> Master)
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  auto-pr-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create and Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Create PR from develop to master
+          gh pr create \
+            --base master \
+            --head develop \
+            --title "🚀 Auto Merge: develop -> master" \
+            --body "Automated Pull Request to merge develop into master." || echo "PR already exists or no changes"
+          
+          # 2. Find the PR URL
+          PR_URL=$(gh pr list --base master --head develop --json url --jq '.[0].url')
+          
+          # 3. Merge the PR
+          if [ -n "$PR_URL" ]; then
+            echo "Merging PR: $PR_URL"
+            gh pr merge "$PR_URL" --merge --admin || gh pr merge "$PR_URL" --merge
+          else
+            echo "No PR found to merge."
+          fi
