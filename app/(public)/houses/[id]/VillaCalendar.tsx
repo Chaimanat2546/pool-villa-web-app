@@ -8,7 +8,7 @@ import type {
   VillaCalendarDay,
   VillaCalendarDayDetail,
   VillaCalendarDayStatus,
-} from "@/lib/villa-calendar";
+} from "@/lib/villa-calendar-types";
 
 type VillaCalendarProps = {
   villaId: string;
