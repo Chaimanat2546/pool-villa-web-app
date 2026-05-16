@@ -2,24 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: [
-    "puppeteer",
     "puppeteer-core",
+    "@sparticuz/chromium",
     "@puppeteer/browsers",
   ],
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Prevent webpack from trying to bundle puppeteer and its Node.js deps.
-      // They are loaded via dynamic import at runtime only when villa-calendar
-      // API routes are called.
-      config.externals = [
-        ...(Array.isArray(config.externals) ? config.externals : []),
-        "puppeteer",
-        "puppeteer-core",
-        "@puppeteer/browsers",
-      ];
-    }
-    return config;
-  },
   images: {
     remotePatterns: [
       {

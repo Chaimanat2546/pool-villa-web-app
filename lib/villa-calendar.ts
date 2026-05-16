@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export type {
   VillaCalendarDayStatus,
   VillaCalendarDay,
@@ -13,6 +11,9 @@ import type {
   VillaCalendarDayDetail,
 } from "./villa-calendar-types";
 
+type Browser = import("puppeteer-core").Browser;
+type Page = import("puppeteer-core").Page;
+
 const VILLA_CALENDAR_BASE_URL = "https://www.pattayapartypoolvilla.com/v";
 const CALENDAR_SELECTOR = "#calendarBooking";
 const MONTH_SELECTOR = `${CALENDAR_SELECTOR} .text-xl.font-bold`;
@@ -20,7 +21,7 @@ const DAY_CELL_SELECTOR = `${CALENDAR_SELECTOR} .grid.grid-cols-7.w-full > div`;
 const CALENDAR_TTL_MS = 1000 * 60 * 5;
 const DAY_TTL_MS = 1000 * 60 * 5;
 const MAX_OFFSET = 12;
-let browserPromise: Promise<any> | null = null;
+let browserPromise: Promise<Browser> | null = null;
 const calendarCache = new Map<
   string,
   { expiresAt: number; payload: VillaCalendarMonth }
@@ -58,11 +59,28 @@ function getDayCacheKey(villaId: string, offset: number, day: number) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    const puppeteer = await import("puppeteer");
-    browserPromise = puppeteer.default.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browserPromise = (async () => {
+      const [{ default: puppeteer }, { default: chromium }] = await Promise.all([
+        import("puppeteer-core"),
+        import("@sparticuz/chromium"),
+      ]);
+      const headless = "shell";
+
+      chromium.setGraphicsMode = false;
+
+      return puppeteer.launch({
+        args: await puppeteer.defaultArgs({
+          args: chromium.args,
+          headless,
+        }),
+        defaultViewport: {
+          width: 1280,
+          height: 720,
+        },
+        executablePath: await chromium.executablePath(),
+        headless,
+      });
+    })();
   }
 
   return browserPromise;
@@ -89,7 +107,7 @@ async function openCalendarPage(villaId: string, offset: number) {
   return page;
 }
 
-async function moveCalendarOffset(page: any, offset: number) {
+async function moveCalendarOffset(page: Page, offset: number) {
   if (offset === 0) return;
 
   for (let index = 0; index < Math.abs(offset); index++) {

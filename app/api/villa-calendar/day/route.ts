@@ -1,4 +1,4 @@
-﻿export const runtime = 'edge';
+﻿export const runtime = "nodejs";
 import { connection, NextResponse } from "next/server";
 import {
   getVillaCalendarDayDetail,
