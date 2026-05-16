@@ -17,7 +17,7 @@ jobs:
       
       - name: Create and Merge PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           # 1. Create PR from develop to master
           gh pr create \
