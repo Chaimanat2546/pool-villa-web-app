@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Save, Trash2 } from "lucide-react";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type {
   HouseRecommendation,
@@ -21,6 +21,11 @@ type RecommendationDraft = {
   startsAt: string;
   endsAt: string | null;
   status: HouseRecommendationStatus;
+};
+
+type RecommendationDraftState = {
+  source: HouseRecommendation[];
+  drafts: Record<string, RecommendationDraft>;
 };
 
 function getDateInputValue(date: Date) {
@@ -97,15 +102,19 @@ export function RecommendationManager({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [createDraft, setCreateDraft] = useState(getInitialCreateDraft);
-  const [drafts, setDrafts] = useState<Record<string, RecommendationDraft>>(
-    () => createDraftMap(recommendations),
-  );
+  const [draftState, setDraftState] = useState<RecommendationDraftState>(() => ({
+    source: recommendations,
+    drafts: createDraftMap(recommendations),
+  }));
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDrafts(createDraftMap(recommendations));
-  }, [recommendations]);
+  let drafts = draftState.drafts;
+
+  if (draftState.source !== recommendations) {
+    drafts = createDraftMap(recommendations);
+    setDraftState({ source: recommendations, drafts });
+  }
 
   function refresh() {
     startTransition(() => {
@@ -180,11 +189,14 @@ export function RecommendationManager({
     field: keyof RecommendationDraft,
     value: RecommendationDraft[keyof RecommendationDraft],
   ) {
-    setDrafts((current) => ({
-      ...current,
-      [id]: {
-        ...current[id],
-        [field]: value,
+    setDraftState((current) => ({
+      source: current.source,
+      drafts: {
+        ...current.drafts,
+        [id]: {
+          ...current.drafts[id],
+          [field]: value,
+        },
       },
     }));
   }

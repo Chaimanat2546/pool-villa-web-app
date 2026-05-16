@@ -4,6 +4,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
+import { useIsClient } from "@/components/use-is-client";
 import type {
   VillaCalendarDay,
   VillaCalendarDayDetail,
@@ -115,11 +116,7 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
     useState<VillaCalendarDayStatus | null>(null);
   const [detail, setDetail] = useState<VillaCalendarDayDetail | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useIsClient();
 
   const fetchCalendar = useCallback(async () => {
     const response = await fetch(
