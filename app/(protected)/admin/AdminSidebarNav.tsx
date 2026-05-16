@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import {
   BookOpenText,
   ExternalLink,
+  House,
   LayoutDashboard,
   PencilLine,
   Sparkles,
@@ -21,6 +22,7 @@ type AdminSidebarItem = {
 
 const ADMIN_SIDEBAR_ITEMS: AdminSidebarItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/houses", label: "บ้านพัก", icon: House },
   { href: "/admin/recommendations", label: "บ้านแนะนำ", icon: Sparkles },
   { href: "/admin/blog", label: "บทความ", icon: BookOpenText },
   { href: "/admin/blog/new", label: "เขียนบทความ", icon: PencilLine },

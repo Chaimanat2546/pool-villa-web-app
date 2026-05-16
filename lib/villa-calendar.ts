@@ -109,14 +109,14 @@ async function moveCalendarOffset(page: Page, offset: number) {
   for (let index = 0; index < Math.abs(offset); index++) {
     const oldMonth = await page.$eval(
       MONTH_SELECTOR,
-      (element) => element.textContent?.trim() || "",
+      (element: Element) => element.textContent?.trim() || "",
     );
     const buttons = await page.$$(`${CALENDAR_SELECTOR} button`);
     let targetButton = null;
 
     for (const button of buttons) {
       const text = await page.evaluate(
-        (element) => element.textContent?.trim() || "",
+        (element: Element) => element.textContent?.trim() || "",
         button,
       );
 
@@ -137,7 +137,7 @@ async function moveCalendarOffset(page: Page, offset: number) {
 
     await targetButton.click();
     await page.waitForFunction(
-      (previousMonth) => {
+      (previousMonth: string) => {
         const element = document.querySelector("#calendarBooking .text-xl.font-bold");
 
         return element?.textContent?.trim() !== previousMonth;
@@ -164,9 +164,9 @@ export async function getVillaCalendarMonth(
   try {
     const month = await page.$eval(
       MONTH_SELECTOR,
-      (element) => element.textContent?.trim() || "",
+      (element: Element) => element.textContent?.trim() || "",
     );
-    const firstDayIndex = await page.$$eval(DAY_CELL_SELECTOR, (elements) => {
+    const firstDayIndex = await page.$$eval(DAY_CELL_SELECTOR, (elements: Element[]) => {
       let count = 0;
 
       for (const element of elements) {
@@ -179,7 +179,7 @@ export async function getVillaCalendarMonth(
 
       return count;
     });
-    const days = await page.$$eval(DAY_CELL_SELECTOR, (elements) => {
+    const days = await page.$$eval(DAY_CELL_SELECTOR, (elements: Element[]) => {
       const seen = new Map<number, VillaCalendarDayStatus>();
       const statusRank: Record<VillaCalendarDayStatus, number> = {
         disabled: 0,
@@ -266,7 +266,7 @@ export async function getVillaCalendarDayDetail(
 
     for (const cell of cells) {
       const text = await page.evaluate(
-        (element) => element.textContent?.trim() || "",
+        (element: Element) => element.textContent?.trim() || "",
         cell,
       );
       const match = text.match(/\d+/);
