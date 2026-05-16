@@ -70,10 +70,6 @@ const POOL_SYSTEM_OPTIONS = [
   { value: "chlorine", label: "คลอรีน" },
 ] as const;
 
-const DATE_PRICE_TYPE_OPTIONS = [
-  { value: "special", label: "ราคาพิเศษ" },
-  { value: "holiday", label: "วันหยุด" },
-] as const;
 
 async function readApiResponse(response: Response) {
   const body = (await response
@@ -309,7 +305,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id as "details" | "pricing")}
             className={`-mb-px px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-b-2 border-primary text-primary"
