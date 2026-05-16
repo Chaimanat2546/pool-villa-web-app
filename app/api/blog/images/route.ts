@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { connection, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/api";
 import { createClient } from "@/lib/supabase/server";
@@ -73,7 +72,7 @@ export async function POST(request: Request) {
     const uploadedFiles = [];
 
     for (const file of uploadFiles) {
-      const filePath = `${safeFolder}/${randomUUID()}.${getImageExtension(
+      const filePath = `${safeFolder}/${crypto.randomUUID()}.${getImageExtension(
         file.type,
       )}`;
       const { error } = await supabase.storage
@@ -116,3 +115,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

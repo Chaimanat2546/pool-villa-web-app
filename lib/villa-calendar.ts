@@ -1,31 +1,17 @@
-import type { Browser, Page } from "puppeteer";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-export type VillaCalendarDayStatus =
-  | "available"
-  | "booked"
-  | "pending"
-  | "holiday"
-  | "special"
-  | "disabled";
+export type {
+  VillaCalendarDayStatus,
+  VillaCalendarDay,
+  VillaCalendarMonth,
+  VillaCalendarDayDetail,
+} from "./villa-calendar-types";
 
-export type VillaCalendarDay = {
-  day: number;
-  status: VillaCalendarDayStatus;
-};
-
-export type VillaCalendarMonth = {
-  month: string;
-  firstDayIndex: number;
-  days: VillaCalendarDay[];
-  offset: number;
-};
-
-export type VillaCalendarDayDetail = {
-  title?: string;
-  price?: string;
-  type?: string;
-  capacity?: string;
-};
+import type {
+  VillaCalendarDayStatus,
+  VillaCalendarMonth,
+  VillaCalendarDayDetail,
+} from "./villa-calendar-types";
 
 const VILLA_CALENDAR_BASE_URL = "https://www.pattayapartypoolvilla.com/v";
 const CALENDAR_SELECTOR = "#calendarBooking";
@@ -34,7 +20,7 @@ const DAY_CELL_SELECTOR = `${CALENDAR_SELECTOR} .grid.grid-cols-7.w-full > div`;
 const CALENDAR_TTL_MS = 1000 * 60 * 5;
 const DAY_TTL_MS = 1000 * 60 * 5;
 const MAX_OFFSET = 12;
-let browserPromise: Promise<Browser> | null = null;
+let browserPromise: Promise<any> | null = null;
 const calendarCache = new Map<
   string,
   { expiresAt: number; payload: VillaCalendarMonth }
@@ -103,7 +89,7 @@ async function openCalendarPage(villaId: string, offset: number) {
   return page;
 }
 
-async function moveCalendarOffset(page: Page, offset: number) {
+async function moveCalendarOffset(page: any, offset: number) {
   if (offset === 0) return;
 
   for (let index = 0; index < Math.abs(offset); index++) {
