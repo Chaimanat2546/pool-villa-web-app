@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { connection, NextResponse } from "next/server";
 import { getHouseById, toHouseApiData } from "@/lib/houses";
 
