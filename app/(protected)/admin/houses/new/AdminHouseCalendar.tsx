@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, Plus, Save, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Save, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
   const [bulkRange, setBulkRange] = useState({
     startsAt: "",
     endsAt: "",
-    priceType: "special" as const,
+    priceType: "special" as "special" | "holiday",
     price: "",
     agencyPrice: "",
     note: "",
@@ -277,7 +277,7 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
           <select
             value={bulkRange.priceType}
             aria-label="ประเภทราคา"
-            onChange={(e) => setBulkRange(c => ({ ...c, priceType: e.target.value as any }))}
+            onChange={(e) => setBulkRange(c => ({ ...c, priceType: e.target.value as "special" | "holiday" }))}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="special">ราคาพิเศษ</option>
@@ -356,7 +356,7 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
             const status = datePrice ? datePrice.priceType : "available";
             const isSelected = selectedDates.includes(item.date);
 
-            let isInRange = false;
+            const isInRange = false;
             if (rangeStart && !isSelected && selectedDates.length === 0) {
               // This is for visual feedback if we had drag-select, but for now we only have Shift+Click
             }
@@ -458,7 +458,7 @@ function EditModal({
             <Label>ประเภท</Label>
             <select
               value={localDraft.priceType}
-              onChange={(e) => setLocalDraft(curr => ({ ...curr, priceType: e.target.value as any }))}
+              onChange={(e) => setLocalDraft(curr => ({ ...curr, priceType: e.target.value as "special" | "holiday" }))}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="special">ราคาพิเศษ</option>
