@@ -21,10 +21,12 @@ import {
   getNearSeaHouses,
   groupHouseImagesByZone,
   type House,
+  getHousesByIds,
 } from "@/lib/houses";
 import { HouseSection } from "../HouseSection";
 import { HouseImageGallery } from "./HouseImageGallery";
 import { VillaCalendar } from "./VillaCalendar";
+import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
 
 type PageProps = {
   params: Promise<{
@@ -202,9 +204,10 @@ async function HouseDetail({ params }: PageProps) {
   const imageGroups = groupHouseImagesByZone(houseImages);
   const overviewItems = getOverviewItems(house);
   const amenityItems = getAmenityItems(house);
-  const relatedHouses = getNearSeaHouses(
-    houses.filter((item) => item.id !== house.id),
-    12,
+  const recommendations = await getPublicHouseRecommendations();
+  const recommendedHouses = getHousesByIds(
+    houses,
+    recommendations.map((recommendation) => recommendation.hId).filter((hId) => hId !== house.id),
   );
 
   return (
@@ -312,12 +315,12 @@ async function HouseDetail({ params }: PageProps) {
         </aside>
       </div>
 
-      {relatedHouses.length > 0 && (
+      {recommendedHouses.length > 0 && (
         <div className="mt-12 border-t border-border pt-10">
           <HouseSection
             title="บ้านพักแนะนำ"
-            houses={relatedHouses}
-            seeMoreHref="/houses/search?sort=farsea_asc"
+            houses={recommendedHouses}
+            seeMoreHref="/houses/search?recommended=y"
           />
         </div>
       )}
