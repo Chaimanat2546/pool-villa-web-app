@@ -1,10 +1,11 @@
 import {
+  applyPublicAccommodationCoverImages,
   filterHouses,
-  getHouses,
-  getHousesByIds,
+  getInternalHouses,
+  getHousesBySourceIds,
   type HouseSearchParams,
 } from "@/lib/houses";
-import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
+import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
 import { Suspense } from "react";
 import { HouseCard } from "../HouseCard";
 import { SearchFilters } from "./SearchFilters";
@@ -29,26 +30,30 @@ async function SearchResults({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const isRecommendedSearch = params.recommended === "y";
   const recommendationsPromise = isRecommendedSearch
-    ? getPublicHouseRecommendations()
-    : Promise.resolve<Awaited<ReturnType<typeof getPublicHouseRecommendations>>>(
-        [],
-      );
-  const [allHouses, recommendations] = await Promise.all([
-    getHouses(),
+    ? getPublicAccommodationRecommendations()
+    : Promise.resolve<
+        Awaited<ReturnType<typeof getPublicAccommodationRecommendations>>
+      >([]);
+  const [houses, recommendations] = await Promise.all([
+    getInternalHouses(),
     recommendationsPromise,
   ]);
-  const searchableHouses = isRecommendedSearch
-    ? getHousesByIds(
-        allHouses,
-        recommendations.map((recommendation) => recommendation.hId),
+  const recommendedHouses = isRecommendedSearch
+    ? getHousesBySourceIds(
+        houses,
+        recommendations.map((recommendation) => recommendation.accommodationId),
       )
-    : allHouses;
-  const houses = filterHouses(searchableHouses, params);
+    : houses;
+  const filteredHouses = filterHouses(recommendedHouses, params);
+  const housesWithCovers = await applyPublicAccommodationCoverImages(
+    filteredHouses,
+  );
 
   return (
     <>
       <SearchFilters
         key={JSON.stringify(params)}
+        action="/houses/search"
         defaultQ={params.q}
         defaultMinPrice={params.minPrice}
         defaultMaxPrice={params.maxPrice}
@@ -74,11 +79,11 @@ async function SearchResults({ searchParams }: SearchPageProps) {
       />
 
       <p className="mb-6 text-sm text-gray-500">
-        {isRecommendedSearch ? "พบบ้านพักแนะนำ" : "พบทั้งหมด"} {houses.length} รายการ
+        {isRecommendedSearch ? "พบบ้านพักแนะนำ" : "พบทั้งหมด"} {housesWithCovers.length} รายการ
       </p>
 
       <div className="grid gap-6 md:grid-cols-3 xl:grid-cols-5">
-        {houses.map((house) => (
+        {housesWithCovers.map((house) => (
           <HouseCard key={house.id} house={house} />
         ))}
       </div>

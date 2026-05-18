@@ -1,6 +1,7 @@
 ﻿export const runtime = "nodejs";
 import { connection, NextResponse } from "next/server";
 import {
+  getInternalVillaCalendarDayDetail,
   getVillaCalendarDayDetail,
   parseVillaCalendarDay,
   parseVillaCalendarOffset,
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const villaId = searchParams.get("id")?.trim();
+    const sourceParam = searchParams.get("source")?.trim();
     const offset = parseVillaCalendarOffset(searchParams.get("offset"));
     const day = parseVillaCalendarDay(searchParams.get("day"));
 
@@ -22,7 +24,13 @@ export async function GET(request: Request) {
       );
     }
 
-    const detail = await getVillaCalendarDayDetail(villaId, offset, day);
+    const inferredSource =
+      sourceParam ?? (/^[0-9a-f]{8}-/i.test(villaId) ? "internal" : "external");
+
+    const detail =
+      inferredSource === "internal"
+        ? await getInternalVillaCalendarDayDetail(villaId, offset, day)
+        : await getVillaCalendarDayDetail(villaId, offset, day);
 
     return NextResponse.json({ data: { detail } });
   } catch (error) {

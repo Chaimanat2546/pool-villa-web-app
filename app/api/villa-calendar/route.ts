@@ -1,6 +1,7 @@
 ﻿export const runtime = "nodejs";
 import { connection, NextResponse } from "next/server";
 import {
+  getInternalVillaCalendarMonth,
   getVillaCalendarMonth,
   parseVillaCalendarOffset,
 } from "@/lib/villa-calendar";
@@ -11,13 +12,20 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const villaId = searchParams.get("id")?.trim();
+    const sourceParam = searchParams.get("source")?.trim();
     const offset = parseVillaCalendarOffset(searchParams.get("offset"));
 
     if (!villaId) {
       return NextResponse.json({ error: "id is required." }, { status: 400 });
     }
 
-    const calendar = await getVillaCalendarMonth(villaId, offset);
+    const inferredSource =
+      sourceParam ?? (/^[0-9a-f]{8}-/i.test(villaId) ? "internal" : "external");
+
+    const calendar =
+      inferredSource === "internal"
+        ? await getInternalVillaCalendarMonth(villaId, offset)
+        : await getVillaCalendarMonth(villaId, offset);
 
     return NextResponse.json({
       data: {

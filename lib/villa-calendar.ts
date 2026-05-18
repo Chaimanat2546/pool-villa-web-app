@@ -5,6 +5,8 @@ export type {
   VillaCalendarDayDetail,
 } from "./villa-calendar-types";
 
+import { existsSync } from "node:fs";
+import { createClient } from "@/lib/supabase/server";
 import type {
   VillaCalendarDayStatus,
   VillaCalendarMonth,
@@ -13,6 +15,7 @@ import type {
 
 type Browser = import("puppeteer-core").Browser;
 type Page = import("puppeteer-core").Page;
+type Chromium = typeof import("@sparticuz/chromium").default;
 
 const VILLA_CALENDAR_BASE_URL = "https://www.pattayapartypoolvilla.com/v";
 const CALENDAR_SELECTOR = "#calendarBooking";
@@ -30,6 +33,47 @@ const dayCache = new Map<
   string,
   { expiresAt: number; payload: VillaCalendarDayDetail | null }
 >();
+const internalCalendarCache = new Map<
+  string,
+  { expiresAt: number; payload: VillaCalendarMonth }
+>();
+const internalDayCache = new Map<
+  string,
+  { expiresAt: number; payload: VillaCalendarDayDetail | null }
+>();
+
+type InternalAccommodationRow = {
+  id: string;
+  status: string;
+  pricing?:
+    | {
+        normal_price: number | string | null;
+      }
+    | null
+    | undefined;
+  weekday_prices?:
+    | Array<{
+        weekday: number | null;
+        price: number | string | null;
+      }>
+    | null
+    | undefined;
+  capacity?:
+    | {
+        guest_capacity: number | null;
+      }
+    | null
+    | undefined;
+};
+
+type InternalDatePriceRow = {
+  stay_date: string;
+  price_type: "special" | "holiday" | "pending" | "booked";
+  price: number | string | null;
+  agency_price: number | string | null;
+  note: string | null;
+  is_active: boolean;
+};
 
 export function clampVillaCalendarOffset(value: number) {
   return Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, value));
@@ -57,6 +101,157 @@ function getDayCacheKey(villaId: string, offset: number, day: number) {
   return `${villaId}:${offset}:${day}`;
 }
 
+function getInternalCalendarCacheKey(accommodationId: string, offset: number) {
+  return `internal:${accommodationId}:${offset}`;
+}
+
+function getInternalDayCacheKey(
+  accommodationId: string,
+  offset: number,
+  day: number,
+) {
+  return `internal:${accommodationId}:${offset}:${day}`;
+}
+
+function toOptionalNumber(value: number | string | null | undefined) {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatPrice(value: number | string | null | undefined) {
+  const parsed = toOptionalNumber(value);
+
+  return parsed === null
+    ? null
+    : `THB ${Math.round(parsed).toLocaleString()}`;
+}
+
+function getMonthStart(offset: number) {
+  const now = new Date();
+
+  return new Date(now.getFullYear(), now.getMonth() + offset, 1);
+}
+
+function getMonthEnd(offset: number) {
+  const now = new Date();
+
+  return new Date(now.getFullYear(), now.getMonth() + offset + 1, 0);
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatMonthLabel(date: Date) {
+  return date.toLocaleString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getWeekdayPrice(
+  weekdayPrices: InternalAccommodationRow["weekday_prices"],
+  weekday: number,
+) {
+  if (!weekdayPrices) return null;
+
+  const match = weekdayPrices.find((item) => item.weekday === weekday);
+
+  return match?.price ?? null;
+}
+
+async function getInternalAccommodationPricing(accommodationId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(
+      `
+      id,
+      status,
+      pricing:accommodation_pricing(normal_price),
+      weekday_prices:accommodation_weekday_prices(
+        weekday,
+        price
+      ),
+      capacity:accommodation_capacity(guest_capacity)
+    `,
+    )
+    .eq("id", accommodationId)
+    .eq("status", "published")
+    .maybeSingle<InternalAccommodationRow>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? null;
+}
+
+async function getInternalDatePrices(
+  accommodationId: string,
+  startDate: string,
+  endDate: string,
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodation_date_prices")
+    .select(
+      "stay_date, price_type, price, agency_price, note, is_active",
+    )
+    .eq("accommodation_id", accommodationId)
+    .eq("is_active", true)
+    .gte("stay_date", startDate)
+    .lte("stay_date", endDate)
+    .returns<InternalDatePriceRow[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data ?? [];
+}
+
+function getExistingBrowserPath(paths: Array<string | undefined>) {
+  return paths.find((path) => path && existsSync(path)) || null;
+}
+
+async function getBrowserExecutablePath(chromium: Chromium) {
+  const localBrowserPath = getExistingBrowserPath([
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    process.env.CHROME_EXECUTABLE_PATH,
+    process.env.GOOGLE_CHROME_BIN,
+    process.env.LOCALAPPDATA
+      ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env.PROGRAMFILES
+      ? `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env["PROGRAMFILES(X86)"]
+      ? `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+  ]);
+
+  if (localBrowserPath) {
+    return localBrowserPath;
+  }
+
+  const chromiumPath = await chromium.executablePath();
+
+  if (chromiumPath && existsSync(chromiumPath)) {
+    return chromiumPath;
+  }
+
+  throw new Error(
+    "Unable to find a browser executable for villa calendar scraping. Set PUPPETEER_EXECUTABLE_PATH or install Chrome/Chromium.",
+  );
+}
+
 async function getBrowser() {
   if (!browserPromise) {
     browserPromise = (async () => {
@@ -67,6 +262,7 @@ async function getBrowser() {
       const headless = "shell";
 
       chromium.setGraphicsMode = false;
+      const executablePath = await getBrowserExecutablePath(chromium);
 
       return puppeteer.launch({
         args: await puppeteer.defaultArgs({
@@ -77,10 +273,13 @@ async function getBrowser() {
           width: 1280,
           height: 720,
         },
-        executablePath: await chromium.executablePath(),
+        executablePath,
         headless,
       });
-    })();
+    })().catch((error) => {
+      browserPromise = null;
+      throw error;
+    });
   }
 
   return browserPromise;
@@ -332,4 +531,144 @@ export async function getVillaCalendarDayDetail(
   } finally {
     await page.close();
   }
+}
+
+export async function getInternalVillaCalendarMonth(
+  accommodationId: string,
+  offset: number,
+): Promise<VillaCalendarMonth> {
+  const cacheKey = getInternalCalendarCacheKey(accommodationId, offset);
+  const cached = internalCalendarCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
+  }
+
+  const monthStart = getMonthStart(offset);
+  const monthEnd = getMonthEnd(offset);
+  const [pricing, datePrices] = await Promise.all([
+    getInternalAccommodationPricing(accommodationId),
+    getInternalDatePrices(
+      accommodationId,
+      formatDateKey(monthStart),
+      formatDateKey(monthEnd),
+    ),
+  ]);
+
+  if (!pricing) {
+    throw new Error("Accommodation not found.");
+  }
+
+  const firstDayIndex = monthStart.getDay();
+  const daysInMonth = monthEnd.getDate();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const datePriceMap = new Map(
+    datePrices.map((price) => [price.stay_date, price]),
+  );
+
+  const days = Array.from({ length: daysInMonth }, (_, index) => {
+    const day = index + 1;
+    const date = new Date(
+      monthStart.getFullYear(),
+      monthStart.getMonth(),
+      day,
+    );
+    const dateKey = formatDateKey(date);
+    const datePrice = datePriceMap.get(dateKey);
+    let status: VillaCalendarDayStatus = "available";
+
+    if (date < today) {
+      status = "disabled";
+    } else if (datePrice?.price_type === "booked") {
+      status = "booked";
+    } else if (datePrice?.price_type === "pending") {
+      status = "pending";
+    } else if (datePrice?.price_type === "holiday") {
+      status = "holiday";
+    } else if (datePrice?.price_type === "special") {
+      status = "special";
+    }
+
+    return { day, status };
+  });
+
+  const payload = {
+    month: formatMonthLabel(monthStart),
+    firstDayIndex,
+    days,
+    offset,
+  } satisfies VillaCalendarMonth;
+
+  internalCalendarCache.set(cacheKey, {
+    expiresAt: Date.now() + CALENDAR_TTL_MS,
+    payload,
+  });
+
+  return payload;
+}
+
+export async function getInternalVillaCalendarDayDetail(
+  accommodationId: string,
+  offset: number,
+  day: number,
+): Promise<VillaCalendarDayDetail | null> {
+  const cacheKey = getInternalDayCacheKey(accommodationId, offset, day);
+  const cached = internalDayCache.get(cacheKey);
+
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.payload;
+  }
+
+  const monthStart = getMonthStart(offset);
+  const date = new Date(
+    monthStart.getFullYear(),
+    monthStart.getMonth(),
+    day,
+  );
+  const dateKey = formatDateKey(date);
+
+  const [pricing, datePrices] = await Promise.all([
+    getInternalAccommodationPricing(accommodationId),
+    getInternalDatePrices(accommodationId, dateKey, dateKey),
+  ]);
+
+  if (!pricing) {
+    throw new Error("Accommodation not found.");
+  }
+
+  const datePrice = datePrices[0] ?? null;
+  const normalPrice = pricing.pricing?.normal_price ?? null;
+  const weekdayPrice = getWeekdayPrice(pricing.weekday_prices, date.getDay());
+  const statusOnly =
+    datePrice?.price_type === "pending" || datePrice?.price_type === "booked";
+  const price = statusOnly
+    ? null
+    : datePrice?.price ?? weekdayPrice ?? normalPrice;
+  const detail: VillaCalendarDayDetail = {
+    title: `Day ${day}`,
+    price: formatPrice(price) ?? undefined,
+    type:
+      datePrice?.price_type === "booked"
+        ? "Booked"
+        : datePrice?.price_type === "pending"
+          ? "Pending"
+          : datePrice?.price_type === "holiday"
+            ? "Holiday"
+            : datePrice?.price_type === "special"
+              ? "Special"
+              : "Standard",
+    capacity:
+      pricing.capacity?.guest_capacity !== null &&
+      pricing.capacity?.guest_capacity !== undefined
+        ? `${pricing.capacity.guest_capacity} guests`
+        : undefined,
+  };
+
+  internalDayCache.set(cacheKey, {
+    expiresAt: Date.now() + DAY_TTL_MS,
+    payload: detail,
+  });
+
+  return detail;
 }

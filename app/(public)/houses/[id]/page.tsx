@@ -3,28 +3,39 @@ import { Suspense, type ComponentType } from "react";
 import {
   Bath,
   BedDouble,
+  CircleCheck,
+  ExternalLink,
   Flame,
   Gamepad2,
   MapPin,
   Music2,
   PawPrint,
+  Phone,
   Sparkles,
   Users,
   Waves,
   Wifi,
 } from "lucide-react";
 import {
+  applyPublicAccommodationCoverImages,
   formatSeaDistance,
   getDisplayNightlyPrice,
-  getHouses,
-  getHouseImages,
-  getNearSeaHouses,
+  getInternalHouses,
+  getInternalHouseDetailByCode,
+  getPublicHouseImagesByAccommodationId,
+  getHousesBySourceIds,
   groupHouseImagesByZone,
   type House,
+  type PublicHouseDetail,
 } from "@/lib/houses";
 import { HouseSection } from "../HouseSection";
 import { HouseImageGallery } from "./HouseImageGallery";
 import { VillaCalendar } from "./VillaCalendar";
+import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
+import { getPublicAreaActivitiesForArea } from "@/lib/area-activities";
+import { AreaActivitiesSection } from "./AreaActivitiesSection";
+
+const AREA_ACTIVITY_PAGE_SIZE = 4;
 
 type PageProps = {
   params: Promise<{
@@ -38,11 +49,12 @@ type DetailItem = {
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 };
 
-type AmenityItem = DetailItem;
-
-function isEnabled(value: string) {
-  return value.trim().toLowerCase() === "y";
-}
+type AmenityItem = {
+  id: string;
+  label: string;
+  value?: string;
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+};
 
 function formatNightlyPrice(house: House) {
   const displayPrice = getDisplayNightlyPrice(house.price);
@@ -88,67 +100,53 @@ function getOverviewItems(house: House): DetailItem[] {
   ];
 }
 
-function getAmenityItems(house: House): AmenityItem[] {
-  const poolLabel = getPoolLabel(house.swim);
-  const amenities: AmenityItem[] = [];
+function getFacilityIcon(slug: string) {
+  const normalizedSlug = slug.trim().toLowerCase();
 
-  if (poolLabel) {
-    amenities.push({ label: "สระว่ายน้ำ", value: poolLabel, icon: Waves });
+  if (["wifi", "wi-fi"].includes(normalizedSlug)) return Wifi;
+  if (["grill", "bbq", "barbecue"].includes(normalizedSlug)) return Flame;
+  if (["pet", "pets", "pet-friendly"].includes(normalizedSlug)) return PawPrint;
+  if (["karaoke", "discotech", "disco", "party"].includes(normalizedSlug)) {
+    return Music2;
   }
-
-  if (isEnabled(house.wifi)) {
-    amenities.push({ label: "Wi-Fi", value: "อินเทอร์เน็ตไร้สาย", icon: Wifi });
+  if (
+    [
+      "snooker",
+      "billard",
+      "billiard",
+      "pool-table",
+      "tabletennis",
+      "table-tennis",
+      "pingpong",
+      "airhockey",
+      "air-hockey",
+    ].includes(normalizedSlug)
+  ) {
+    return Gamepad2;
   }
-
-  if (isEnabled(house.grill)) {
-    amenities.push({ label: "ปิ้งย่าง", value: "มีเตาปิ้งย่าง", icon: Flame });
+  if (
+    [
+      "slider",
+      "water-slider",
+      "swimming_kid",
+      "swimming-kid",
+      "kid-pool",
+      "kids-pool",
+    ].includes(normalizedSlug)
+  ) {
+    return Waves;
   }
+  if (["jacuzzi", "bath", "bathtub"].includes(normalizedSlug)) return Bath;
 
-  if (isEnabled(house.pet)) {
-    amenities.push({ label: "สัตว์เลี้ยง", value: "นำสัตว์เลี้ยงเข้าได้", icon: PawPrint });
-  }
+  return CircleCheck;
+}
 
-  if (isEnabled(house.karaoke)) {
-    amenities.push({ label: "คาราโอเกะ", value: "มีชุดคาราโอเกะ", icon: Music2 });
-  }
-
-  if (isEnabled(house.snooker)) {
-    amenities.push({ label: "สนุกเกอร์", value: "มีโต๊ะสนุกเกอร์", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.billard)) {
-    amenities.push({ label: "พูล/บิลเลียด", value: "มีโต๊ะพูล", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.slider)) {
-    amenities.push({ label: "สไลเดอร์", value: "มีสไลเดอร์", icon: Waves });
-  }
-
-  if (isEnabled(house.swimmingKid)) {
-    amenities.push({ label: "สระเด็ก", value: "มีสระสำหรับเด็ก", icon: Waves });
-  }
-
-  if (isEnabled(house.jacuzzi)) {
-    amenities.push({ label: "Jacuzzi", value: "มีอ่างจากุซซี่", icon: Sparkles });
-  }
-
-  if (isEnabled(house.bath)) {
-    amenities.push({ label: "อ่างอาบน้ำ", value: "มีอ่างอาบน้ำ", icon: Bath });
-  }
-
-  if (isEnabled(house.tabletennis)) {
-    amenities.push({ label: "ปิงปอง", value: "มีโต๊ะปิงปอง", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.airhockey)) {
-    amenities.push({ label: "Air hockey", value: "มีโต๊ะแอร์ฮอกกี้", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.discotech)) {
-    amenities.push({ label: "ปาร์ตี้", value: "มีไฟ/เสียงสำหรับปาร์ตี้", icon: Music2 });
-  }
-
-  return amenities;
+function getAmenityItems(house: PublicHouseDetail): AmenityItem[] {
+  return house.facilities.map((facility) => ({
+    id: facility.id,
+    label: facility.name,
+    icon: getFacilityIcon(facility.slug),
+  }));
 }
 
 function OverviewItem({ item }: { item: DetailItem }) {
@@ -171,10 +169,158 @@ function AmenityRow({ item }: { item: AmenityItem }) {
       <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
       <div>
         <p className="font-medium text-primary">{item.label}</p>
-        <p className="text-sm text-muted-foreground">{item.value}</p>
+        {item.value && (
+          <p className="text-sm text-muted-foreground">{item.value}</p>
+        )}
       </div>
     </div>
   );
+}
+
+function AdditionalDetails({
+  house,
+  displayCode,
+}: {
+  house: PublicHouseDetail;
+  displayCode: string;
+}) {
+  const hasContacts = house.contacts.length > 0;
+
+  return (
+    <section className="py-8">
+      <h2 className="text-2xl font-bold text-primary">รายละเอียดเพิ่มเติม</h2>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <InfoCard label="รหัสบ้าน" value={displayCode} />
+        <InfoCard label="ระยะห่างจากทะเล" value={formatSeaDistance(house.farsea)} />
+        <InfoCard label="ประเภทสระ" value={getPoolLabel(house.swim) ?? "ไม่ระบุ"} />
+        <InfoCard label="ราคา" value={`${formatNightlyPrice(house)} / คืน`} />
+        <InfoCard label="ประเภทบ้าน" value={house.accommodationTypeName} />
+        <InfoCard label="พื้นที่/โซน" value={formatAreaLabel(house)} />
+        <InfoCard
+          label="เช็คอิน"
+          value={house.checkInTime ? `หลัง ${house.checkInTime.slice(0, 5)} น.` : null}
+        />
+        <InfoCard
+          label="เช็คเอาท์"
+          value={house.checkOutTime ? `ก่อน ${house.checkOutTime.slice(0, 5)} น.` : null}
+        />
+        <InfoCard
+          label="ค่ามัดจำ"
+          value={formatMoney(house.securityDepositAmount)}
+        />
+        <InfoCard
+          label="ค่าคนเสริม"
+          value={formatMoney(house.extraGuestPrice)}
+        />
+      </div>
+
+      {house.addressDetails && (
+        <div className="mt-6 rounded-md bg-muted/40 p-4">
+          <p className="text-sm text-muted-foreground">ที่อยู่</p>
+          <p className="mt-1 font-medium text-primary">{house.addressDetails}</p>
+          {house.googleMapsUrl && (
+            <a
+              href={house.googleMapsUrl}
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent underline underline-offset-4"
+              target="_blank"
+              rel="noreferrer"
+            >
+              เปิดแผนที่
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
+        </div>
+      )}
+
+      {(house.bedroomDetails ||
+        house.poolDescription ||
+        house.petPolicyDetails ||
+        house.additionalDetails ||
+        house.additionalFeeDetails) && (
+          <div className="mt-6 space-y-3">
+            {house.bedroomDetails && (
+              <TextCard label="รายละเอียดห้องนอน" value={house.bedroomDetails} />
+            )}
+            {house.poolDescription && (
+              <TextCard label="รายละเอียดสระ" value={house.poolDescription} />
+            )}
+            {house.petPolicyDetails && (
+              <TextCard label="นโยบายสัตว์เลี้ยง" value={house.petPolicyDetails} />
+            )}
+            {house.additionalDetails && (
+              <TextCard label="รายละเอียดอื่นๆ" value={house.additionalDetails} />
+            )}
+            {house.additionalFeeDetails && (
+              <TextCard label="ค่าใช้จ่ายเพิ่มเติม" value={house.additionalFeeDetails} />
+            )}
+          </div>
+        )}
+
+      {hasContacts && (
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">ติดต่อ</p>
+          <div className="mt-2 space-y-2">
+            {house.contacts.map((contact, index) => (
+              <div
+                key={`${contact.phoneNumber}-${index}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2"
+              >
+                <div>
+                  <p className="font-medium text-primary">
+                    {contact.name ?? "เจ้าหน้าที่"}
+                  </p>
+                  {contact.role && (
+                    <p className="text-xs text-muted-foreground">
+                      {contact.role}
+                    </p>
+                  )}
+                </div>
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
+                  <Phone className="h-3.5 w-3.5" aria-hidden />
+                  {contact.phoneNumber}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InfoCard({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+
+  return (
+    <div className="rounded-md bg-muted/40 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 font-semibold text-primary">{value}</p>
+    </div>
+  );
+}
+
+function TextCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted/40 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm text-primary leading-6">{value}</p>
+    </div>
+  );
+}
+
+function formatMoney(value: number | null) {
+  if (value === null) return null;
+
+  return `฿${Math.round(value).toLocaleString()}`;
+}
+
+function formatAreaLabel(house: PublicHouseDetail) {
+  const parts = [house.areaName, house.zoneName, house.provinceName].filter(
+    Boolean,
+  ) as string[];
+
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 export default function HouseDetailPage({ params }: PageProps) {
@@ -189,23 +335,47 @@ export default function HouseDetailPage({ params }: PageProps) {
 
 async function HouseDetail({ params }: PageProps) {
   const { id } = await params;
-  const [houses, houseImages] = await Promise.all([
-    getHouses(),
-    getHouseImages(id),
+  const [house, houses, recommendations] = await Promise.all([
+    getInternalHouseDetailByCode(id),
+    getInternalHouses(),
+    getPublicAccommodationRecommendations(),
   ]);
-  const house = houses.find((item) => item.id === id);
 
   if (!house) {
     notFound();
   }
 
+  const displayCode = /[a-z]/i.test(house.code)
+    ? house.code
+    : `DV-${house.code}`;
+  const displayTitle = house.name?.trim() || displayCode;
+  const systemLocationLabel = formatAreaLabel(house);
+  const locationLabel = systemLocationLabel ?? "บ้านพักของเรา";
+  const recommendedSourceIds = recommendations
+    .map((recommendation) => recommendation.accommodationId)
+    .filter((accommodationId) => accommodationId !== house.sourceId);
+  const areaActivities = await getPublicAreaActivitiesForArea({
+    areaId: house.accommodationAreaId,
+    page: 1,
+    pageSize: AREA_ACTIVITY_PAGE_SIZE,
+  });
+
+  const [publicHouseImages, recommendedHouses] = await Promise.all([
+    getPublicHouseImagesByAccommodationId(house.sourceId),
+    applyPublicAccommodationCoverImages(
+      getHousesBySourceIds(houses, recommendedSourceIds),
+    ),
+  ]);
+
+  const publicCoverImage =
+    publicHouseImages.find((image) => image.zone === "cover")?.url ?? null;
+  const houseImages = publicHouseImages.filter(
+    (image) => image.zone !== "cover",
+  );
+  const coverImage = publicCoverImage ?? house.coverImage;
   const imageGroups = groupHouseImagesByZone(houseImages);
   const overviewItems = getOverviewItems(house);
   const amenityItems = getAmenityItems(house);
-  const relatedHouses = getNearSeaHouses(
-    houses.filter((item) => item.id !== house.id),
-    12,
-  );
 
   return (
     <>
@@ -214,12 +384,12 @@ async function HouseDetail({ params }: PageProps) {
           Pool Villa Pattaya
         </p>
         <h1 className="mt-2 text-4xl font-bold leading-tight text-primary md:text-5xl">
-          บ้านพัก DV-{house.id}
+          {displayTitle}
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground md:text-base">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-4 w-4" aria-hidden />
-            พัทยา
+            {locationLabel}
           </span>
           <span className="hidden text-border sm:inline">|</span>
           <span className="inline-flex items-center gap-1.5">
@@ -235,8 +405,8 @@ async function HouseDetail({ params }: PageProps) {
       </header>
 
       <HouseImageGallery
-        houseId={house.id}
-        coverImage={house.coverImage}
+        houseTitle={displayTitle}
+        coverImage={coverImage}
         images={houseImages}
         imageGroups={imageGroups}
       />
@@ -246,7 +416,7 @@ async function HouseDetail({ params }: PageProps) {
           <section className="border-b border-border pb-8">
             <h2 className="text-2xl font-bold text-primary">เกี่ยวกับบ้านพัก</h2>
             <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
-              บ้านพักพูลวิลล่า DV-{house.id} สำหรับกลุ่มที่ต้องการพื้นที่พักผ่อนในพัทยา
+              บ้านพักพูลวิลล่า {displayTitle} สำหรับกลุ่มที่ต้องการพื้นที่พักผ่อน
               มี {house.bedroom} ห้องนอน {house.toilet} ห้องน้ำ รองรับได้ประมาณ{" "}
               {house.people} ท่าน และอยู่{formatSeaDistance(house.farsea)}
             </p>
@@ -266,7 +436,7 @@ async function HouseDetail({ params }: PageProps) {
             {amenityItems.length > 0 ? (
               <div className="mt-5 grid grid-cols-1 gap-x-8 sm:grid-cols-2">
                 {amenityItems.map((item) => (
-                  <AmenityRow key={item.label} item={item} />
+                  <AmenityRow key={item.id} item={item} />
                 ))}
               </div>
             ) : (
@@ -276,48 +446,31 @@ async function HouseDetail({ params }: PageProps) {
             )}
           </section>
 
-          <section className="py-8">
-            <h2 className="text-2xl font-bold text-primary">รายละเอียดเพิ่มเติม</h2>
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">รหัสบ้าน</p>
-                <p className="mt-1 font-semibold text-primary">DV-{house.id}</p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ระยะห่างจากทะเล</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {formatSeaDistance(house.farsea)}
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ประเภทสระ</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {getPoolLabel(house.swim) ?? "ไม่ระบุ"}
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ราคา</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {formatNightlyPrice(house)} / คืน
-                </p>
-              </div>
-            </div>
-          </section>
+          <AdditionalDetails house={house} displayCode={displayCode} />
         </div>
 
         <aside className="lg:col-span-4">
           <div className="lg:sticky lg:top-24">
-            <VillaCalendar villaId={house.id} />
+            <VillaCalendar
+              villaId={house.sourceId}
+              source="internal"
+            />
+            <AreaActivitiesSection
+              areaId={house.accommodationAreaId}
+              activities={areaActivities.activities}
+              totalCount={areaActivities.totalCount}
+              pageSize={AREA_ACTIVITY_PAGE_SIZE}
+            />
           </div>
         </aside>
       </div>
 
-      {relatedHouses.length > 0 && (
+      {recommendedHouses.length > 0 && (
         <div className="mt-12 border-t border-border pt-10">
           <HouseSection
             title="บ้านพักแนะนำ"
-            houses={relatedHouses}
-            seeMoreHref="/houses/search?sort=farsea_asc"
+            houses={recommendedHouses}
+            seeMoreHref="/houses/search?recommended=y"
           />
         </div>
       )}

@@ -1,12 +1,12 @@
-﻿export const runtime = 'edge';
+﻿export const runtime = "edge";
 import { connection, NextResponse } from "next/server";
-import { getHouses, toHouseApiData } from "@/lib/houses";
+import { getInternalHouses, toHouseApiData } from "@/lib/houses";
 
 export async function GET() {
   await connection();
 
   try {
-    const houses = await getHouses();
+    const houses = await getInternalHouses();
 
     return NextResponse.json({
       data: houses.map(toHouseApiData),

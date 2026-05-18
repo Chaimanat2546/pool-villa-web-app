@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import {
+  applyPublicAccommodationCoverImages,
   getBudgetHouses,
-  getHouses,
-  getHousesByIds,
+  getInternalHouses,
+  getHousesBySourceIds,
   getNearSeaHouses,
 } from "@/lib/houses";
 import { getPublishedBlogPosts } from "@/lib/blog";
-import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
+import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
 import { BlogSection } from "./BlogSection";
 import { HouseSection } from "./HouseSection";
 import Image from "next/image";
@@ -67,13 +68,14 @@ function HeroSearch() {
 
 async function HouseList() {
   const [houses, recommendations, blogPosts] = await Promise.all([
-    getHouses(),
-    getPublicHouseRecommendations(),
+    getInternalHouses(),
+    getPublicAccommodationRecommendations(),
     getPublishedBlogPosts(3),
   ]);
-  const recommendedHouses = getHousesByIds(
-    houses,
-    recommendations.map((recommendation) => recommendation.hId),
+  const housesWithCovers = await applyPublicAccommodationCoverImages(houses);
+  const recommendedHouses = getHousesBySourceIds(
+    housesWithCovers,
+    recommendations.map((recommendation) => recommendation.accommodationId),
   );
 
   return (
@@ -86,9 +88,17 @@ async function HouseList() {
         />
       )}
 
+      {housesWithCovers.length > 0 && (
+        <HouseSection
+          title="บ้านพักของเรา"
+          houses={housesWithCovers.slice(0, 12)}
+          seeMoreHref="/houses/search"
+        />
+      )}
+
       <HouseSection
         title="บ้านพักใกล้ทะเล"
-        houses={getNearSeaHouses(houses)}
+        houses={getNearSeaHouses(housesWithCovers)}
         seeMoreHref="/houses/search?maxFarsea=5&sort=farsea_asc"
       />
 
@@ -96,7 +106,7 @@ async function HouseList() {
 
       <HouseSection
         title="บ้านพักราคาประหยัด"
-        houses={getBudgetHouses(houses)}
+        houses={getBudgetHouses(housesWithCovers)}
         seeMoreHref="/houses/search?maxPrice=7000&sort=price_asc"
       />
     </>
