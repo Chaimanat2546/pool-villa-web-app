@@ -106,6 +106,7 @@ export type PublicHouseFacility = {
 };
 
 export type PublicHouseDetail = House & {
+  accommodationAreaId: string;
   accommodationTypeName: string | null;
   areaName: string | null;
   zoneName: string | null;
@@ -269,6 +270,7 @@ export type AdminHouseSummary = {
 export type AdminHouseAreaOption = {
   id: string;
   name: string;
+  accommodationZoneId: string | null;
   zoneName: string | null;
   provinceName: string | null;
 };
@@ -470,6 +472,7 @@ type AdminHouseAreaOptionRow = {
   id: string;
   name: string;
   accommodation_zone?: RelatedValue<{
+    id: string;
     name: string | null;
     province?: RelatedValue<{
       name: string | null;
@@ -568,6 +571,7 @@ type PublicAccommodationDetailRow = {
   name: string;
   code: string;
   status: AccommodationStatus;
+  accommodation_area_id: string;
   created_at: string;
   updated_at: string;
   accommodation_type?: RelatedValue<{
@@ -738,6 +742,7 @@ const ADMIN_HOUSE_AREAS_SELECT = `
   id,
   name,
   accommodation_zone:accommodation_zones(
+    id,
     name,
     province:provinces(name)
   )
@@ -869,6 +874,7 @@ const PUBLIC_HOUSE_DETAIL_SELECT = `
   name,
   code,
   status,
+  accommodation_area_id,
   created_at,
   updated_at,
   accommodation_type:accommodation_types(name),
@@ -1211,6 +1217,7 @@ function mapPublicAccommodationDetail(
 
   return {
     ...baseHouse,
+    accommodationAreaId: row.accommodation_area_id,
     accommodationTypeName: accommodationType?.name ?? null,
     areaName: area?.name ?? null,
     zoneName: zone?.name ?? null,
@@ -1245,6 +1252,7 @@ function mapAdminHouseAreaOption(
   return {
     id: row.id,
     name: row.name,
+    accommodationZoneId: zone?.id ?? null,
     zoneName: zone?.name ?? null,
     provinceName: province?.name ?? null,
   };
@@ -1558,6 +1566,92 @@ export async function createAdminHouseFacility(input: {
   }
 
   return data.id;
+}
+
+export async function updateAdminHouseProvince(input: {
+  id: string;
+  name: string;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("provinces")
+    .update({ name: input.name })
+    .eq("id", input.id);
+
+  if (error) {
+    throw new Error(getSupabaseHouseCreateErrorMessage(error, "Province already exists."));
+  }
+}
+
+export async function updateAdminHouseZone(input: {
+  id: string;
+  provinceId: string;
+  name: string;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accommodation_zones")
+    .update({
+      province_id: input.provinceId,
+      name: input.name,
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    throw new Error(getSupabaseHouseCreateErrorMessage(error, "Zone already exists."));
+  }
+}
+
+export async function updateAdminHouseArea(input: {
+  id: string;
+  accommodationZoneId: string;
+  name: string;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accommodation_areas")
+    .update({
+      accommodation_zone_id: input.accommodationZoneId,
+      name: input.name,
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    throw new Error(getSupabaseHouseCreateErrorMessage(error, "Area already exists."));
+  }
+}
+
+export async function updateAdminHouseType(input: { id: string; name: string }) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("accommodation_types")
+    .update({ name: input.name })
+    .eq("id", input.id);
+
+  if (error) {
+    throw new Error(getSupabaseHouseCreateErrorMessage(error, "Type already exists."));
+  }
+}
+
+export async function updateAdminHouseFacility(input: {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+}) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("facilities")
+    .update({
+      name: input.name,
+      slug: input.slug,
+      icon: input.icon,
+    })
+    .eq("id", input.id);
+
+  if (error) {
+    throw new Error(getSupabaseHouseCreateErrorMessage(error, "Facility already exists."));
+  }
 }
 
 export async function getAdminHouseForEdit(

@@ -73,14 +73,14 @@ function getDayClassName(status: VillaCalendarDayStatus) {
   }
 
   if (status === "holiday") {
-    return `${base} border-amber-300 bg-amber-100 text-slate-800 hover:bg-amber-200`;
+    return `${base} border-amber-300 bg-amber-100 text-foreground hover:bg-amber-200`;
   }
 
   if (status === "disabled") {
-    return `${base} cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400`;
+    return `${base} cursor-not-allowed border-border bg-muted text-muted-foreground`;
   }
 
-  return `${base} border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50`;
+  return `${base} border-border bg-card text-primary hover:border-accent/40 hover:bg-accent/10`;
 }
 
 function StatusSwatch({ status }: { status: VillaCalendarDayStatus }) {
@@ -94,12 +94,12 @@ function StatusSwatch({ status }: { status: VillaCalendarDayStatus }) {
           : status === "holiday"
             ? "bg-amber-100"
             : status === "disabled"
-              ? "bg-slate-100"
-              : "bg-white";
+              ? "bg-muted"
+              : "bg-card";
 
   return (
     <span
-      className={`inline-block h-3.5 w-3.5 rounded-sm border border-slate-300 ${className}`}
+      className={`inline-block h-3.5 w-3.5 rounded-sm border border-border ${className}`}
       aria-hidden="true"
     />
   );
@@ -217,16 +217,16 @@ export function VillaCalendar({
 
   return (
     <>
-      <section className="rounded-lg border bg-white p-4 shadow-sm">
+      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
         <div className="mb-4 flex items-center gap-2">
-          <CalendarDays className="h-5 w-5 text-sky-700" aria-hidden="true" />
+          <CalendarDays className="h-5 w-5 text-accent" aria-hidden="true" />
           <div>
-            <h2 className="text-xl font-bold text-slate-900">ปฏิทินบ้านพัก</h2>
+            <h2 className="text-xl font-bold text-primary">ปฏิทินบ้านพัก</h2>
             <p className="text-sm text-muted-foreground">เช็ควันว่างและราคาแต่ละวัน</p>
           </div>
         </div>
 
-        <div className="rounded-md border bg-slate-50 px-3 py-2 text-center font-semibold text-slate-800">
+        <div className="rounded-md border border-border bg-muted/50 px-3 py-2 text-center font-semibold text-primary">
           {isLoading ? "กำลังโหลด..." : month || "ไม่พบข้อมูลปฏิทิน"}
         </div>
 
@@ -258,11 +258,11 @@ export function VillaCalendar({
           </div>
         )}
 
-        <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-600">
+        <div className="grid grid-cols-7 text-center text-xs font-semibold text-muted-foreground">
           {WEEK_DAYS.map((day) => (
             <div
               key={day}
-              className="flex h-9 items-center justify-center border border-slate-200 bg-slate-50"
+              className="flex h-9 items-center justify-center border border-border bg-muted/50"
             >
               {day}
             </div>
@@ -301,7 +301,7 @@ export function VillaCalendar({
           })}
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 border-t pt-3 text-xs text-slate-700 sm:grid-cols-3">
+        <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-3 text-xs text-muted-foreground sm:grid-cols-3">
           {(
             [
               "available",
@@ -324,18 +324,18 @@ export function VillaCalendar({
         selectedDay !== null &&
         createPortal(
           <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[1px]">
-          <div className="relative w-full max-w-md rounded-lg border bg-white p-6 shadow-xl">
+          <div className="relative w-full max-w-md rounded-lg border border-border bg-card p-6 text-card-foreground shadow-xl">
             <button
               type="button"
               onClick={closeModal}
-              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-primary"
               aria-label="ปิด"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
 
             {isDetailLoading ? (
-              <div className="py-8 text-center text-slate-500">
+              <div className="py-8 text-center text-muted-foreground">
                 กำลังโหลด...
               </div>
             ) : (
@@ -344,7 +344,7 @@ export function VillaCalendar({
                   <p className="text-sm font-medium text-muted-foreground">
                     {selectedStatus ? STATUS_LABELS[selectedStatus] : "รายละเอียด"}
                   </p>
-                  <h3 className="mt-1 text-xl font-bold text-slate-900">
+                  <h3 className="mt-1 text-xl font-bold text-primary">
                     {detail?.title || `วันที่ ${selectedDay}`}
                   </h3>
                 </div>
@@ -360,7 +360,7 @@ export function VillaCalendar({
                     <DetailRow label="รองรับ" value={detail.capacity} />
                   )}
                   {!detail?.type && !detail?.price && !detail?.capacity && (
-                    <p className="rounded-md bg-slate-50 p-3 text-sm text-slate-600">
+                    <p className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
                       ไม่มีรายละเอียดเพิ่มเติมสำหรับวันนี้
                     </p>
                   )}
@@ -389,13 +389,13 @@ function DetailRow({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-md bg-slate-50 p-3">
-      <span className="text-sm font-medium text-slate-600">{label}</span>
+    <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
+      <span className="text-sm font-medium text-muted-foreground">{label}</span>
       <span
         className={
           highlight
-            ? "text-lg font-bold text-emerald-700"
-            : "font-semibold text-slate-900"
+            ? "text-lg font-bold text-accent"
+            : "font-semibold text-primary"
         }
       >
         {value}
