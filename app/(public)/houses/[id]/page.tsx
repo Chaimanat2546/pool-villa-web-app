@@ -14,19 +14,21 @@ import {
   Wifi,
 } from "lucide-react";
 import {
+  applyPublicAccommodationCoverImages,
   formatSeaDistance,
   getDisplayNightlyPrice,
-  getHouses,
-  getHouseImages,
-  getNearSeaHouses,
+  getInternalHouses,
+  getInternalHouseDetailByCode,
+  getPublicHouseImagesByAccommodationId,
+  getHousesBySourceIds,
   groupHouseImagesByZone,
   type House,
-  getHousesByIds,
+  type PublicHouseDetail,
 } from "@/lib/houses";
 import { HouseSection } from "../HouseSection";
 import { HouseImageGallery } from "./HouseImageGallery";
 import { VillaCalendar } from "./VillaCalendar";
-import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
+import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
 
 type PageProps = {
   params: Promise<{
@@ -179,6 +181,147 @@ function AmenityRow({ item }: { item: AmenityItem }) {
   );
 }
 
+function InternalHouseDetails({ house }: { house: PublicHouseDetail }) {
+  const hasContacts = house.contacts.length > 0;
+  const hasFacilities = house.facilities.length > 0;
+
+  return (
+    <section className="border-b border-border py-8">
+      <h2 className="text-2xl font-bold text-primary">ข้อมูลจากระบบ</h2>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <InfoCard label="ประเภทบ้าน" value={house.accommodationTypeName} />
+        <InfoCard label="พื้นที่/โซน" value={formatAreaLabel(house)} />
+        <InfoCard
+          label="เช็คอิน"
+          value={house.checkInTime ? `หลัง ${house.checkInTime}` : null}
+        />
+        <InfoCard
+          label="เช็คเอาท์"
+          value={house.checkOutTime ? `ก่อน ${house.checkOutTime}` : null}
+        />
+        <InfoCard
+          label="ค่ามัดจำ"
+          value={formatMoney(house.securityDepositAmount)}
+        />
+        <InfoCard
+          label="ค่าคนเสริม"
+          value={formatMoney(house.extraGuestPrice)}
+        />
+      </div>
+
+      {house.addressDetails && (
+        <div className="mt-6 rounded-md bg-muted/40 p-4">
+          <p className="text-sm text-muted-foreground">ที่อยู่</p>
+          <p className="mt-1 font-medium text-primary">{house.addressDetails}</p>
+          {house.googleMapsUrl && (
+            <a
+              href={house.googleMapsUrl}
+              className="mt-2 inline-flex text-sm font-semibold text-accent underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              เปิดแผนที่
+            </a>
+          )}
+        </div>
+      )}
+
+      {(house.poolDescription || house.petPolicyDetails || house.additionalFeeDetails) && (
+        <div className="mt-6 space-y-3">
+          {house.poolDescription && (
+            <TextCard label="รายละเอียดสระ" value={house.poolDescription} />
+          )}
+          {house.petPolicyDetails && (
+            <TextCard label="นโยบายสัตว์เลี้ยง" value={house.petPolicyDetails} />
+          )}
+          {house.additionalFeeDetails && (
+            <TextCard label="ค่าใช้จ่ายเพิ่มเติม" value={house.additionalFeeDetails} />
+          )}
+        </div>
+      )}
+
+      {hasFacilities && (
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">Facilities</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {house.facilities.map((facility) => (
+              <span
+                key={facility.id}
+                className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
+              >
+                {facility.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasContacts && (
+        <div className="mt-6">
+          <p className="text-sm text-muted-foreground">ติดต่อ</p>
+          <div className="mt-2 space-y-2">
+            {house.contacts.map((contact, index) => (
+              <div
+                key={`${contact.phoneNumber}-${index}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2"
+              >
+                <div>
+                  <p className="font-medium text-primary">
+                    {contact.name ?? "เจ้าหน้าที่"}
+                  </p>
+                  {contact.role && (
+                    <p className="text-xs text-muted-foreground">
+                      {contact.role}
+                    </p>
+                  )}
+                </div>
+                <span className="text-sm font-semibold text-accent">
+                  {contact.phoneNumber}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function InfoCard({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+
+  return (
+    <div className="rounded-md bg-muted/40 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 font-semibold text-primary">{value}</p>
+    </div>
+  );
+}
+
+function TextCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md bg-muted/40 p-4">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm text-primary leading-6">{value}</p>
+    </div>
+  );
+}
+
+function formatMoney(value: number | null) {
+  if (value === null) return null;
+
+  return `฿${Math.round(value).toLocaleString()}`;
+}
+
+function formatAreaLabel(house: PublicHouseDetail) {
+  const parts = [house.areaName, house.zoneName, house.provinceName].filter(
+    Boolean,
+  ) as string[];
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export default function HouseDetailPage({ params }: PageProps) {
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:py-12">
@@ -191,23 +334,41 @@ export default function HouseDetailPage({ params }: PageProps) {
 
 async function HouseDetail({ params }: PageProps) {
   const { id } = await params;
-  const [houses, houseImages] = await Promise.all([
-    getHouses(),
-    getHouseImages(id),
+  const [house, houses, recommendations] = await Promise.all([
+    getInternalHouseDetailByCode(id),
+    getInternalHouses(),
+    getPublicAccommodationRecommendations(),
   ]);
-  const house = houses.find((item) => item.id === id);
 
   if (!house) {
     notFound();
   }
 
+  const displayCode = /[a-z]/i.test(house.code)
+    ? house.code
+    : `DV-${house.code}`;
+  const displayTitle = house.name?.trim() || displayCode;
+
+  const publicHouseImages = await getPublicHouseImagesByAccommodationId(
+    house.sourceId,
+  );
+
+  const publicCoverImage =
+    publicHouseImages.find((image) => image.zone === "cover")?.url ?? null;
+  const houseImages = publicHouseImages.filter(
+    (image) => image.zone !== "cover",
+  );
+  const coverImage = publicCoverImage ?? house.coverImage;
   const imageGroups = groupHouseImagesByZone(houseImages);
   const overviewItems = getOverviewItems(house);
   const amenityItems = getAmenityItems(house);
-  const recommendations = await getPublicHouseRecommendations();
-  const recommendedHouses = getHousesByIds(
-    houses,
-    recommendations.map((recommendation) => recommendation.hId).filter((hId) => hId !== house.id),
+  const recommendedHouses = await applyPublicAccommodationCoverImages(
+    getHousesBySourceIds(
+      houses,
+      recommendations
+        .map((recommendation) => recommendation.accommodationId)
+        .filter((accommodationId) => accommodationId !== house.sourceId),
+    ),
   );
 
   return (
@@ -217,12 +378,12 @@ async function HouseDetail({ params }: PageProps) {
           Pool Villa Pattaya
         </p>
         <h1 className="mt-2 text-4xl font-bold leading-tight text-primary md:text-5xl">
-          บ้านพัก DV-{house.id}
+          {displayTitle}
         </h1>
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground md:text-base">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-4 w-4" aria-hidden />
-            พัทยา
+            บ้านพักของเรา
           </span>
           <span className="hidden text-border sm:inline">|</span>
           <span className="inline-flex items-center gap-1.5">
@@ -238,8 +399,8 @@ async function HouseDetail({ params }: PageProps) {
       </header>
 
       <HouseImageGallery
-        houseId={house.id}
-        coverImage={house.coverImage}
+        houseTitle={displayTitle}
+        coverImage={coverImage}
         images={houseImages}
         imageGroups={imageGroups}
       />
@@ -249,7 +410,7 @@ async function HouseDetail({ params }: PageProps) {
           <section className="border-b border-border pb-8">
             <h2 className="text-2xl font-bold text-primary">เกี่ยวกับบ้านพัก</h2>
             <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
-              บ้านพักพูลวิลล่า DV-{house.id} สำหรับกลุ่มที่ต้องการพื้นที่พักผ่อนในพัทยา
+              บ้านพักพูลวิลล่า {displayTitle} สำหรับกลุ่มที่ต้องการพื้นที่พักผ่อน
               มี {house.bedroom} ห้องนอน {house.toilet} ห้องน้ำ รองรับได้ประมาณ{" "}
               {house.people} ท่าน และอยู่{formatSeaDistance(house.farsea)}
             </p>
@@ -279,12 +440,14 @@ async function HouseDetail({ params }: PageProps) {
             )}
           </section>
 
+          <InternalHouseDetails house={house} />
+
           <section className="py-8">
             <h2 className="text-2xl font-bold text-primary">รายละเอียดเพิ่มเติม</h2>
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-md bg-muted/40 p-4">
                 <p className="text-sm text-muted-foreground">รหัสบ้าน</p>
-                <p className="mt-1 font-semibold text-primary">DV-{house.id}</p>
+                <p className="mt-1 font-semibold text-primary">{displayCode}</p>
               </div>
               <div className="rounded-md bg-muted/40 p-4">
                 <p className="text-sm text-muted-foreground">ระยะห่างจากทะเล</p>
@@ -310,7 +473,10 @@ async function HouseDetail({ params }: PageProps) {
 
         <aside className="lg:col-span-4">
           <div className="lg:sticky lg:top-24">
-            <VillaCalendar villaId={house.id} />
+            <VillaCalendar
+              villaId={house.sourceId}
+              source="internal"
+            />
           </div>
         </aside>
       </div>

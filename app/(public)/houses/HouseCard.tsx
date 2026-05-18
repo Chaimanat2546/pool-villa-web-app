@@ -12,12 +12,29 @@ type HouseCardProps = {
   house: HouseCardData;
 };
 
+function isLocalSupabaseUrl(url: string) {
+  return (
+    url.startsWith("http://127.0.0.1:54321/") ||
+    url.startsWith("http://localhost:54321/")
+  );
+}
+
 export function HouseCard({ house }: HouseCardProps) {
   const displayPrice = getDisplayNightlyPrice(house.price);
+  const displayCode = /[a-z]/i.test(house.code)
+    ? house.code
+    : `DV-${house.code}`;
+  const displayTitle = house.name?.trim() || displayCode;
+  const houseHref =
+    house.source === "external"
+      ? `/houses/external/${house.code}`
+      : `/houses/${house.code}`;
+  const useUnoptimizedImage =
+    house.coverImage && isLocalSupabaseUrl(house.coverImage);
 
   return (
     <Link
-      href={`/houses/${house.id}`}
+      href={houseHref}
       className="group relative z-0 block w-[280px] flex-none snap-start cursor-pointer md:w-56"
       draggable={false}
     >
@@ -26,22 +43,22 @@ export function HouseCard({ house }: HouseCardProps) {
           {house.coverImage && (
             <Image
               src={house.coverImage}
-              alt={`House DV-${house.id}`}
+              alt={displayTitle}
               fill
               sizes="(max-width: 768px) 280px, 320px"
               draggable={false}
               className="object-cover brightness-[0.92] saturate-[0.98] transition-transform duration-500 group-hover:scale-[1.03]"
               loading="lazy"
+              unoptimized={Boolean(useUnoptimizedImage)}
             />
           )}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-black/0 to-black/5" />
         </div>
 
         <div className="relative z-10 flex flex-1 flex-col gap-1 bg-card px-3 py-2">
-
           <div className="flex justify-between items-start w-full">
             <h3 className="text-lg font-semibold text-primary truncate">
-              DV-{house.id}
+              {displayTitle}
             </h3>
           </div>
           <p className="text-xs text-secondary">
