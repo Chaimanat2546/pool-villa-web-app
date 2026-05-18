@@ -12,6 +12,7 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AdminHouseCalendar } from "./AdminHouseCalendar";
 
 type HouseCreateFormProps = {
   options: AdminHouseCreateOptions;
@@ -153,8 +154,6 @@ function getInitialDatePrices(house: AdminHouseEditData | undefined) {
   );
 }
 
-import { AdminHouseCalendar } from "./AdminHouseCalendar";
-
 export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"details" | "pricing">("details");
@@ -169,6 +168,31 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
   const [error, setError] = useState<string | null>(null);
   const canSubmit = options.areas.length > 0 && options.types.length > 0;
   const isEditing = Boolean(house);
+
+  function addContact() {
+    setContacts((current) => [
+      ...current,
+      {
+        id: createDraftId(),
+        name: "",
+        phoneNumber: "",
+        role: "",
+        isPublic: false,
+      },
+    ]);
+  }
+
+  function updateContact(id: string, patch: Partial<Omit<ContactDraft, "id">>) {
+    setContacts((current) =>
+      current.map((contact) =>
+        contact.id === id ? { ...contact, ...patch } : contact,
+      ),
+    );
+  }
+
+  function removeContact(id: string) {
+    setContacts((current) => current.filter((contact) => contact.id !== id));
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -246,6 +270,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
                 stay_date: datePrice.stayDate,
                 price_type: datePrice.priceType,
                 price: datePrice.price.trim(),
+                agency_price: datePrice.agencyPrice.trim() || null,
                 note: datePrice.note.trim() || null,
                 is_active: datePrice.isActive,
               }))
@@ -305,7 +330,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab.id as "details" | "pricing")}
+            onClick={() => setActiveTab(tab.id)}
             className={`-mb-px px-6 py-3 text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? "border-b-2 border-primary text-primary"
@@ -419,229 +444,238 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
             </div>
           </section>
 
-          {isEditing && (
-            <>
-              <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-card-foreground">สระ</h2>
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-card-foreground">ราคาหลัก</h2>
 
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field label="ประเภทสระ" htmlFor="pool_type">
-                    <select
-                      id="pool_type"
-                      name="pool_type"
-                      defaultValue={house?.poolType ?? "none"}
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      {POOL_TYPE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="ราคาหลัก" htmlFor="normal_price">
+                <Input
+                  id="normal_price"
+                  name="normal_price"
+                  defaultValue={house?.normalPrice ?? ""}
+                  min="0"
+                  required
+                  step="1"
+                  type="number"
+                />
+              </Field>
 
-                  <Field label="ระบบสระ" htmlFor="pool_system">
-                    <select
-                      id="pool_system"
-                      name="pool_system"
-                      defaultValue={house?.poolSystem ?? ""}
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      {POOL_SYSTEM_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+              <Field label="ราคา Agency (ปกติ)" htmlFor="normal_agency_price">
+                <Input
+                  id="normal_agency_price"
+                  name="normal_agency_price"
+                  defaultValue={house?.normalAgencyPrice ?? ""}
+                  min="0"
+                  placeholder="ราคาสำหรับ Agency"
+                  step="1"
+                  type="number"
+                />
+              </Field>
 
-                <div className="mt-4">
-                  <Field label="รายละเอียดสระ" htmlFor="pool_description">
-                    <textarea
-                      id="pool_description"
-                      name="pool_description"
-                      defaultValue={house?.poolDescription ?? ""}
-                      rows={4}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              <Field label="ราคาคนเสริม" htmlFor="extra_guest_price">
+                <Input
+                  id="extra_guest_price"
+                  name="extra_guest_price"
+                  defaultValue={house?.extraGuestPrice ?? ""}
+                  min="0"
+                  step="1"
+                  type="number"
+                />
+              </Field>
+
+              <Field label="เงินประกัน" htmlFor="security_deposit_amount">
+                <Input
+                  id="security_deposit_amount"
+                  name="security_deposit_amount"
+                  defaultValue={house?.securityDepositAmount ?? ""}
+                  min="0"
+                  step="1"
+                  type="number"
+                />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-card-foreground">สระ</h2>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Field label="ประเภทสระ" htmlFor="pool_type">
+                <select
+                  id="pool_type"
+                  name="pool_type"
+                  defaultValue={house?.poolType ?? "none"}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {POOL_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="ระบบสระ" htmlFor="pool_system">
+                <select
+                  id="pool_system"
+                  name="pool_system"
+                  defaultValue={house?.poolSystem ?? ""}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  {POOL_SYSTEM_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="mt-4">
+              <Field label="รายละเอียดสระ" htmlFor="pool_description">
+                <textarea
+                  id="pool_description"
+                  name="pool_description"
+                  defaultValue={house?.poolDescription ?? ""}
+                  rows={4}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-card-foreground">
+              สัตว์เลี้ยง
+            </h2>
+
+            <div className="mt-4 grid gap-4">
+              <Field label="รับสัตว์เลี้ยง" htmlFor="pets_allowed">
+                <select
+                  id="pets_allowed"
+                  name="pets_allowed"
+                  defaultValue={house?.petsAllowed ? "true" : "false"}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="false">ไม่รับ</option>
+                  <option value="true">รับ</option>
+                </select>
+              </Field>
+
+              <Field label="รายละเอียดสัตว์เลี้ยง" htmlFor="pet_policy_details">
+                <textarea
+                  id="pet_policy_details"
+                  name="pet_policy_details"
+                  defaultValue={house?.petPolicyDetails ?? ""}
+                  rows={4}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+              </Field>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-card-foreground">
+              สิ่งอำนวยความสะดวก
+            </h2>
+
+            {options.facilities.length > 0 ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {options.facilities.map((facility) => (
+                  <label
+                    key={facility.id}
+                    className="flex min-h-10 items-center gap-3 rounded-md border border-border px-3 py-2 text-sm"
+                  >
+                    <input
+                      name="facility_ids"
+                      type="checkbox"
+                      value={facility.id}
+                      defaultChecked={house?.facilityIds.includes(facility.id)}
+                      className="h-4 w-4 accent-brand"
                     />
-                  </Field>
-                </div>
-              </section>
+                    <span>{facility.name}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                ยังไม่มีรายการ facilities
+              </p>
+            )}
+          </section>
 
-              <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-card-foreground">
-                  สัตว์เลี้ยง
-                </h2>
+          <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-card-foreground">
+                ติดต่อ
+              </h2>
+              <Button type="button" variant="outline" onClick={addContact}>
+                <Plus aria-hidden />
+                เพิ่มเบอร์
+              </Button>
+            </div>
 
-                <div className="mt-4 grid gap-4">
-                  <Field label="รับสัตว์เลี้ยง" htmlFor="pets_allowed">
-                    <select
-                      id="pets_allowed"
-                      name="pets_allowed"
-                      defaultValue={house?.petsAllowed ? "true" : "false"}
-                      className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="false">ไม่รับ</option>
-                      <option value="true">รับ</option>
-                    </select>
-                  </Field>
-
-                  <Field label="รายละเอียดสัตว์เลี้ยง" htmlFor="pet_policy_details">
-                    <textarea
-                      id="pet_policy_details"
-                      name="pet_policy_details"
-                      defaultValue={house?.petPolicyDetails ?? ""}
-                      rows={4}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            <div className="mt-4 space-y-3">
+              {contacts.map((contact) => (
+                <div
+                  key={contact.id}
+                  className="grid gap-3 border-t border-border pt-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]"
+                >
+                  <Input
+                    value={contact.name}
+                    onChange={(event) =>
+                      updateContact(contact.id, { name: event.target.value })
+                    }
+                    placeholder="ชื่อ"
+                  />
+                  <Input
+                    value={contact.phoneNumber}
+                    onChange={(event) =>
+                      updateContact(contact.id, {
+                        phoneNumber: event.target.value,
+                      })
+                    }
+                    placeholder="เบอร์โทร"
+                  />
+                  <Input
+                    value={contact.role}
+                    onChange={(event) =>
+                      updateContact(contact.id, { role: event.target.value })
+                    }
+                    placeholder="role"
+                  />
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      checked={contact.isPublic}
+                      onChange={(event) =>
+                        updateContact(contact.id, {
+                          isPublic: event.target.checked,
+                        })
+                      }
+                      type="checkbox"
+                      className="h-4 w-4 accent-brand"
                     />
-                  </Field>
-                </div>
-              </section>
-
-              <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <h2 className="text-lg font-semibold text-card-foreground">
-                  สิ่งอำนวยความสะดวก
-                </h2>
-
-                {options.facilities.length > 0 ? (
-                  <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    {options.facilities.map((facility) => (
-                      <label
-                        key={facility.id}
-                        className="flex min-h-10 items-center gap-3 rounded-md border border-border px-3 py-2 text-sm"
-                      >
-                        <input
-                          name="facility_ids"
-                          type="checkbox"
-                          value={facility.id}
-                          defaultChecked={house?.facilityIds.includes(facility.id)}
-                          className="h-4 w-4 accent-brand"
-                        />
-                        <span>{facility.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    ยังไม่มีรายการ facilities
-                  </p>
-                )}
-              </section>
-
-              <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="text-lg font-semibold text-card-foreground">
-                    ติดต่อ
-                  </h2>
+                    public
+                  </label>
                   <Button
                     type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setContacts((current) => [
-                        ...current,
-                        {
-                          id: createDraftId(),
-                          name: "",
-                          phoneNumber: "",
-                          role: "",
-                          isPublic: false,
-                        },
-                      ])
-                    }
+                    size="icon"
+                    variant="ghost"
+                    aria-label="ลบเบอร์ติดต่อ"
+                    onClick={() => removeContact(contact.id)}
                   >
-                    <Plus aria-hidden />
-                    เพิ่มเบอร์
+                    <Trash2 aria-hidden />
                   </Button>
                 </div>
+              ))}
 
-                <div className="mt-4 space-y-3">
-                  {contacts.map((contact) => (
-                    <div
-                      key={contact.id}
-                      className="grid gap-3 border-t border-border pt-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]"
-                    >
-                      <Input
-                        value={contact.name}
-                        onChange={(event) =>
-                          setContacts((current) =>
-                            current.map((item) =>
-                              item.id === contact.id
-                                ? { ...item, name: event.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                        placeholder="ชื่อ"
-                      />
-                      <Input
-                        value={contact.phoneNumber}
-                        onChange={(event) =>
-                          setContacts((current) =>
-                            current.map((item) =>
-                              item.id === contact.id
-                                ? { ...item, phoneNumber: event.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                        placeholder="เบอร์โทร"
-                      />
-                      <Input
-                        value={contact.role}
-                        onChange={(event) =>
-                          setContacts((current) =>
-                            current.map((item) =>
-                              item.id === contact.id
-                                ? { ...item, role: event.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                        placeholder="role"
-                      />
-                      <label className="flex items-center gap-2 text-sm">
-                        <input
-                          checked={contact.isPublic}
-                          onChange={(event) =>
-                            setContacts((current) =>
-                              current.map((item) =>
-                                item.id === contact.id
-                                  ? { ...item, isPublic: event.target.checked }
-                                  : item,
-                              ),
-                            )
-                          }
-                          type="checkbox"
-                          className="h-4 w-4 accent-brand"
-                        />
-                        public
-                      </label>
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        aria-label="ลบเบอร์ติดต่อ"
-                        onClick={() =>
-                          setContacts((current) =>
-                            current.filter((item) => item.id !== contact.id),
-                          )
-                        }
-                      >
-                        <Trash2 aria-hidden />
-                      </Button>
-                    </div>
-                  ))}
-
-                  {contacts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      ยังไม่มีเบอร์ติดต่อ
-                    </p>
-                  ) : null}
-                </div>
-              </section>
-            </>
-          )}
+              {contacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  ยังไม่มีเบอร์ติดต่อ
+                </p>
+              ) : null}
+            </div>
+          </section>
 
           <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-card-foreground">ที่ตั้ง</h2>
@@ -775,119 +809,6 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
             </div>
           </section>
 
-          {isEditing && (
-            <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-lg font-semibold text-card-foreground">
-                  ติดต่อ
-                </h2>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() =>
-                    setContacts((current) => [
-                      ...current,
-                      {
-                        id: createDraftId(),
-                        name: "",
-                        phoneNumber: "",
-                        role: "",
-                        isPublic: false,
-                      },
-                    ])
-                  }
-                >
-                  <Plus aria-hidden />
-                  เพิ่มเบอร์
-                </Button>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {contacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="grid gap-3 border-t border-border pt-3 md:grid-cols-[1fr_1fr_1fr_auto_auto]"
-                  >
-                    <Input
-                      value={contact.name}
-                      onChange={(event) =>
-                        setContacts((current) =>
-                          current.map((item) =>
-                            item.id === contact.id
-                              ? { ...item, name: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder="ชื่อ"
-                    />
-                    <Input
-                      value={contact.phoneNumber}
-                      onChange={(event) =>
-                        setContacts((current) =>
-                          current.map((item) =>
-                            item.id === contact.id
-                              ? { ...item, phoneNumber: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder="เบอร์โทร"
-                    />
-                    <Input
-                      value={contact.role}
-                      onChange={(event) =>
-                        setContacts((current) =>
-                          current.map((item) =>
-                            item.id === contact.id
-                              ? { ...item, role: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                      placeholder="role"
-                    />
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        checked={contact.isPublic}
-                        onChange={(event) =>
-                          setContacts((current) =>
-                            current.map((item) =>
-                              item.id === contact.id
-                                ? { ...item, isPublic: event.target.checked }
-                                : item,
-                            ),
-                          )
-                        }
-                        type="checkbox"
-                        className="h-4 w-4 accent-brand"
-                      />
-                      public
-                    </label>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      aria-label="ลบเบอร์ติดต่อ"
-                      onClick={() =>
-                        setContacts((current) =>
-                          current.filter((item) => item.id !== contact.id),
-                        )
-                      }
-                    >
-                      <Trash2 aria-hidden />
-                    </Button>
-                  </div>
-                ))}
-
-                {contacts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    ยังไม่มีเบอร์ติดต่อ
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          )}
         </div>
       </div>
 
@@ -896,55 +817,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
           <section className="rounded-lg border border-border bg-card p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-card-foreground">ราคา</h2>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <Field label="ราคาหลัก" htmlFor="normal_price">
-                <Input
-                  id="normal_price"
-                  name="normal_price"
-                  defaultValue={house?.normalPrice ?? ""}
-                  min="0"
-                  required
-                  step="1"
-                  type="number"
-                />
-              </Field>
-
-              <Field label="ราคา Agency (ปกติ)" htmlFor="normal_agency_price">
-                <Input
-                  id="normal_agency_price"
-                  name="normal_agency_price"
-                  defaultValue={house?.normalAgencyPrice ?? ""}
-                  min="0"
-                  placeholder="ราคาสำหรับ Agency"
-                  step="1"
-                  type="number"
-                />
-              </Field>
-
-              <Field label="ราคาคนเสริม" htmlFor="extra_guest_price">
-                <Input
-                  id="extra_guest_price"
-                  name="extra_guest_price"
-                  defaultValue={house?.extraGuestPrice ?? ""}
-                  min="0"
-                  step="1"
-                  type="number"
-                />
-              </Field>
-
-              <Field label="เงินประกัน" htmlFor="security_deposit_amount">
-                <Input
-                  id="security_deposit_amount"
-                  name="security_deposit_amount"
-                  defaultValue={house?.securityDepositAmount ?? ""}
-                  min="0"
-                  step="1"
-                  type="number"
-                />
-              </Field>
-            </div>
-
-            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-2">
               {WEEKDAYS.map((weekday) => {
                 const weekdayPrice = getWeekdayPrice(house, weekday.value);
 

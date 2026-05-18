@@ -291,10 +291,6 @@ export type AdminHouseCreateInput = {
   extraGuestPrice: number | null;
   securityDepositAmount: number | null;
   weekdayPrices: AdminHouseWeekdayPriceInput[];
-};
-
-export type AdminHouseUpdateInput = AdminHouseCreateInput & {
-  status: AccommodationStatus;
   poolType: PoolDetailType;
   poolSystem: PoolSystemType | null;
   poolDescription: string | null;
@@ -302,6 +298,10 @@ export type AdminHouseUpdateInput = AdminHouseCreateInput & {
   petPolicyDetails: string | null;
   facilityIds: string[];
   contacts: AdminHouseContactInput[];
+};
+
+export type AdminHouseUpdateInput = AdminHouseCreateInput & {
+  status: AccommodationStatus;
   datePrices: AdminHouseDatePriceInput[];
 };
 
@@ -1164,6 +1164,10 @@ export function parseAdminHouseCreateInput(
   const checkInTime = parseOptionalTime(body.check_in_time, "check_in_time");
   const checkOutTime = parseOptionalTime(body.check_out_time, "check_out_time");
   const weekdayPrices = parseWeekdayPrices(body.weekday_prices);
+  const poolType = getOptionalTrimmedString(body.pool_type) ?? "none";
+  const poolSystem = getOptionalTrimmedString(body.pool_system);
+  const facilityIds = parseStringArray(body.facility_ids, "facility_ids");
+  const contacts = parseContacts(body.contacts);
 
   if (!name.ok) return { ok: false, error: name.error };
   if (!code.ok) return { ok: false, error: code.error };
@@ -1193,6 +1197,14 @@ export function parseAdminHouseCreateInput(
   if (!checkInTime.ok) return { ok: false, error: checkInTime.error };
   if (!checkOutTime.ok) return { ok: false, error: checkOutTime.error };
   if (!weekdayPrices.ok) return { ok: false, error: weekdayPrices.error };
+  if (!isPoolDetailType(poolType)) {
+    return { ok: false, error: "pool_type must be private, shared, or none." };
+  }
+  if (poolSystem !== null && !isPoolSystemType(poolSystem)) {
+    return { ok: false, error: "pool_system must be salt or chlorine." };
+  }
+  if (!facilityIds.ok) return { ok: false, error: facilityIds.error };
+  if (!contacts.ok) return { ok: false, error: contacts.error };
 
   const addressDetails = getOptionalTrimmedString(body.address_details);
 
@@ -1230,6 +1242,13 @@ export function parseAdminHouseCreateInput(
       extraGuestPrice: extraGuestPrice.value,
       securityDepositAmount: securityDepositAmount.value,
       weekdayPrices: weekdayPrices.value,
+      poolType,
+      poolSystem,
+      poolDescription: getOptionalTrimmedString(body.pool_description),
+      petsAllowed: parseBooleanInput(body.pets_allowed),
+      petPolicyDetails: getOptionalTrimmedString(body.pet_policy_details),
+      facilityIds: facilityIds.value,
+      contacts: contacts.value,
     },
   };
 }
@@ -1390,21 +1409,8 @@ export function parseAdminHouseUpdateInput(
     return { ok: false, error: "status must be published or archived." };
   }
 
-  if (!isPoolDetailType(body.pool_type)) {
-    return { ok: false, error: "pool_type must be private, shared, or none." };
-  }
-
-  const poolSystem = getOptionalTrimmedString(body.pool_system);
-  if (poolSystem !== null && !isPoolSystemType(poolSystem)) {
-    return { ok: false, error: "pool_system must be salt or chlorine." };
-  }
-
-  const facilityIds = parseStringArray(body.facility_ids, "facility_ids");
-  const contacts = parseContacts(body.contacts);
   const datePrices = parseDatePrices(body.date_prices);
 
-  if (!facilityIds.ok) return { ok: false, error: facilityIds.error };
-  if (!contacts.ok) return { ok: false, error: contacts.error };
   if (!datePrices.ok) return { ok: false, error: datePrices.error };
 
   return {
@@ -1412,13 +1418,6 @@ export function parseAdminHouseUpdateInput(
     data: {
       ...parsed.data,
       status: body.status,
-      poolType: body.pool_type,
-      poolSystem,
-      poolDescription: getOptionalTrimmedString(body.pool_description),
-      petsAllowed: parseBooleanInput(body.pets_allowed),
-      petPolicyDetails: getOptionalTrimmedString(body.pet_policy_details),
-      facilityIds: facilityIds.value,
-      contacts: contacts.value,
       datePrices: datePrices.value,
     },
   };
@@ -1466,6 +1465,18 @@ export async function createAdminHouse(input: AdminHouseCreateInput) {
     p_bedroom_details: input.bedroomDetails,
     p_extra_guest_price: input.extraGuestPrice,
     p_security_deposit_amount: input.securityDepositAmount,
+    p_pool_type: input.poolType,
+    p_pool_system: input.poolSystem,
+    p_pool_description: input.poolDescription,
+    p_pets_allowed: input.petsAllowed,
+    p_pet_policy_details: input.petPolicyDetails,
+    p_facility_ids: input.facilityIds,
+    p_contacts: input.contacts.map((contact) => ({
+      name: contact.name,
+      phone_number: contact.phoneNumber,
+      role: contact.role,
+      is_public: contact.isPublic,
+    })),
     p_weekday_prices: input.weekdayPrices.map((wp) => ({
       weekday: wp.weekday,
       price: wp.price,
