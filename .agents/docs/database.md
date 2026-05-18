@@ -21,6 +21,7 @@
   - `20260518100000_create_accommodation_images.sql`
   - `20260518170000_create_accommodation_recommendations.sql`
   - `20260519090000_add_accommodation_date_price_statuses.sql`
+  - `20260519100000_create_area_activities.sql`
 - ถ้าแก้ schema ให้เพิ่ม migration ใหม่ใน `supabase/migrations` อย่าแก้ migration เก่าที่ apply แล้วโดยไม่จำเป็น
 - RLS ต้องเปิดและ policy ต้องสอดคล้องกับ role
 - ห้าม expose service role หรือ secret ฝั่ง client

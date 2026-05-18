@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
     "@puppeteer/browsers",
   ],
   images: {
+    dangerouslyAllowLocalIP: true,
     remotePatterns: [
       {
         protocol: "https",
