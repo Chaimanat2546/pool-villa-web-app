@@ -1,12 +1,12 @@
-﻿export const runtime = "edge";
+export const runtime = "edge";
 import { connection, NextResponse } from "next/server";
-import { getInternalHouses, toHouseApiData } from "@/lib/houses";
+import { getExternalHouses, toHouseApiData } from "@/lib/houses";
 
 export async function GET() {
   await connection();
 
   try {
-    const houses = await getInternalHouses();
+    const houses = await getExternalHouses();
 
     return NextResponse.json({
       data: houses.map(toHouseApiData),
@@ -20,4 +20,3 @@ export async function GET() {
     );
   }
 }
-

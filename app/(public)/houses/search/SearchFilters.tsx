@@ -13,6 +13,7 @@ type SearchFiltersProps = {
   defaultPeople?: string;
   defaultSort?: string;
   defaultRecommended?: string;
+  action?: string;
   defaultWifi?: string;
   defaultGrill?: string;
   defaultPet?: string;
@@ -60,6 +61,7 @@ export function SearchFilters({
   defaultPeople = "",
   defaultSort = "",
   defaultRecommended = "",
+  action = "/houses/search",
   defaultWifi = "",
   defaultGrill = "",
   defaultPet = "",
@@ -137,7 +139,7 @@ export function SearchFilters({
   const shouldSubmitPeople = peopleVal !== "0" || Boolean(defaultPeople);
 
   return (
-    <form action="/houses/search" method="get" className="mb-8 space-y-4">
+    <form action={action} method="get" className="mb-8 space-y-4">
       <input
         type="hidden"
         name="minPrice"

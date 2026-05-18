@@ -6,13 +6,20 @@ import { useEffect, useMemo, useState } from "react";
 import type { HouseImage, HouseImageGroup } from "@/lib/houses";
 
 type HouseImageGalleryProps = {
-  houseId: string;
+  houseTitle: string;
   coverImage: string | null;
   images: HouseImage[];
   imageGroups: HouseImageGroup[];
 };
 
 const ALL_ZONES_KEY = "__all__";
+
+function isLocalSupabaseUrl(url: string) {
+  return (
+    url.startsWith("http://127.0.0.1:54321/") ||
+    url.startsWith("http://localhost:54321/")
+  );
+}
 
 function getPreviewImages(images: HouseImage[]) {
   const previewImages: HouseImage[] = [];
@@ -48,6 +55,8 @@ function GalleryTile({
   priority?: boolean;
   className?: string;
 }) {
+  const unoptimized = isLocalSupabaseUrl(src);
+
   return (
     <div className={`relative overflow-hidden bg-stone-100 ${className}`}>
       <Image
@@ -58,6 +67,7 @@ function GalleryTile({
         priority={priority}
         sizes="(max-width: 768px) 100vw, 50vw"
         className="object-cover"
+        unoptimized={unoptimized}
       />
       {label && (
         <div className="absolute bottom-3 left-3 rounded-full bg-black/65 px-3 py-1 text-sm font-medium text-white backdrop-blur">
@@ -99,7 +109,7 @@ function ZoneTabButton({
 }
 
 export function HouseImageGallery({
-  houseId,
+  houseTitle,
   coverImage,
   images,
   imageGroups,
@@ -172,7 +182,7 @@ export function HouseImageGallery({
         {/* Primary image: full width, tall */}
         <GalleryTile
           src={primaryImage}
-          alt={`รูปปก DV-${houseId}`}
+          alt={`รูปปก ${houseTitle}`}
           priority
           className="aspect-[16/9] w-full md:aspect-[21/9]"
         />
@@ -184,7 +194,7 @@ export function HouseImageGallery({
               <GalleryTile
                 key={`${image.zone}-${image.imageName}`}
                 src={image.url}
-                alt={`รูป ${image.zoneLabel} DV-${houseId}`}
+                alt={`รูป ${image.zoneLabel} ${houseTitle}`}
                 label={image.zoneLabel}
                 className="aspect-[4/3] border-r border-white/80 last:border-r-0"
               />
@@ -210,7 +220,7 @@ export function HouseImageGallery({
           className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label={`รูปทั้งหมดของ DV-${houseId}`}
+          aria-label={`รูปทั้งหมดของ ${houseTitle}`}
         >
           <div className="mx-auto max-w-6xl rounded-xl bg-white shadow-2xl">
             {/* Header */}
@@ -218,7 +228,7 @@ export function HouseImageGallery({
               <div className="mb-4 flex items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold text-stone-950">
-                    รูปทั้งหมด DV-{houseId}
+                    รูปทั้งหมด {houseTitle}
                   </h2>
                   <p className="text-sm text-stone-600">
                     รวม {totalImages} รูป
@@ -263,7 +273,7 @@ export function HouseImageGallery({
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <GalleryTile
                       src={coverImage}
-                      alt={`รูปปกเดิม DV-${houseId}`}
+                      alt={`รูปปกเดิม ${houseTitle}`}
                       className="aspect-[4/3] rounded-lg"
                     />
                   </div>
@@ -286,7 +296,7 @@ export function HouseImageGallery({
                       <GalleryTile
                         key={`${group.zone}-${image.imageName}`}
                         src={image.url}
-                        alt={`รูป ${group.label} DV-${houseId}`}
+                        alt={`รูป ${group.label} ${houseTitle}`}
                         className="aspect-[4/3] rounded-lg"
                       />
                     ))}

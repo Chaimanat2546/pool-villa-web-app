@@ -1,5 +1,5 @@
 import { connection, NextResponse } from "next/server";
-import { getInternalHouseByCode, toHouseApiData } from "@/lib/houses";
+import { getExternalHouseById, toHouseApiData } from "@/lib/houses";
 
 type RouteContext = {
   params: Promise<{
@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   try {
     const { id } = await params;
-    const house = await getInternalHouseByCode(id);
+    const house = await getExternalHouseById(id);
 
     if (!house) {
       return NextResponse.json({ error: "House not found" }, { status: 404 });
