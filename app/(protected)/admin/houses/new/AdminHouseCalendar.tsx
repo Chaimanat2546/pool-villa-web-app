@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 type DatePriceDraft = {
   id: string;
   stayDate: string;
-  priceType: "special" | "holiday";
+  priceType: "special" | "holiday" | "pending" | "booked";
   price: string;
   agencyPrice: string;
   note: string;
@@ -29,29 +29,45 @@ const STATUS_LABELS = {
   available: "วันปกติ",
   holiday: "วันหยุด",
   special: "ราคาพิเศษ",
+  pending: "รอโอน",
+  booked: "ติดจองแล้ว",
 };
 
-function getDayClassName(status: "special" | "holiday" | "available", isSelected: boolean, isInRange: boolean) {
+function getDayClassName(
+  status: "special" | "holiday" | "pending" | "booked" | "available",
+  isSelected: boolean,
+  isInRange: boolean,
+  isPast: boolean,
+) {
   const base =
     "relative flex aspect-square select-none items-center justify-center overflow-hidden rounded-md border text-sm font-semibold transition";
+  const pastTone = isPast ? " opacity-80" : "";
 
   if (isSelected) {
-    return `${base} ring-2 ring-primary border-primary z-10 shadow-md scale-105 bg-primary/10`;
+    return `${base} ring-2 ring-primary border-primary z-10 shadow-md scale-105 bg-primary/10${pastTone}`;
   }
 
   if (isInRange) {
-    return `${base} bg-sky-100 border-sky-300 z-0`;
+    return `${base} bg-sky-100 border-sky-300 z-0${pastTone}`;
   }
 
   if (status === "special") {
-    return `${base} border-orange-500 bg-orange-500 text-white hover:bg-orange-600`;
+    return `${base} border-orange-500 bg-orange-500 text-white hover:bg-orange-600${pastTone}`;
   }
 
   if (status === "holiday") {
-    return `${base} border-amber-300 bg-amber-100 text-slate-800 hover:bg-amber-200`;
+    return `${base} border-amber-300 bg-amber-100 text-slate-800 hover:bg-amber-200${pastTone}`;
   }
 
-  return `${base} border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50`;
+  if (status === "pending") {
+    return `${base} border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600${pastTone}`;
+  }
+
+  if (status === "booked") {
+    return `${base} border-rose-500 bg-rose-500 text-white hover:bg-rose-600${pastTone}`;
+  }
+
+  return `${base} border-slate-200 bg-white text-slate-800 hover:border-sky-300 hover:bg-sky-50${pastTone}`;
 }
 
 function parseDateInput(value: string) {
@@ -98,7 +114,7 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
   const [bulkRange, setBulkRange] = useState({
     startsAt: "",
     endsAt: "",
-    priceType: "special" as "special" | "holiday",
+    priceType: "special" as "special" | "holiday" | "pending" | "booked",
     price: "",
     agencyPrice: "",
     note: "",
@@ -111,6 +127,8 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
       year: "numeric",
     }).format(viewDate);
   }, [viewDate]);
+
+  const todayKey = useMemo(() => formatDateInput(new Date()), []);
 
   const daysInMonth = useMemo(() => {
     const year = viewDate.getFullYear();
@@ -135,9 +153,15 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
 
   const datePriceMap = useMemo(() => {
     const map = new Map<string, DatePriceDraft>();
+    const statusRank: Record<DatePriceDraft["priceType"], number> = {
+      special: 1,
+      holiday: 2,
+      pending: 3,
+      booked: 4,
+    };
     datePrices.forEach(dp => {
       const existing = map.get(dp.stayDate);
-      if (!existing || dp.priceType === "special") {
+      if (!existing || statusRank[dp.priceType] > statusRank[existing.priceType]) {
         map.set(dp.stayDate, dp);
       }
     });
@@ -190,18 +214,23 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
   }
 
   function handleSave(draft: Omit<DatePriceDraft, "stayDate">) {
+    const priceRequired = draft.priceType === "special" || draft.priceType === "holiday";
+    const priceValue = draft.price.trim();
+    const resolvedPrice = priceRequired ? priceValue : priceValue || "0";
+    if (priceRequired && !resolvedPrice) {
+      return;
+    }
     setDatePrices(current => {
       let next = [...current];
 
       selectedDates.forEach(date => {
         next = next.filter(dp => dp.stayDate !== date);
-        if (draft.price.trim()) {
-          next.push({
-            ...draft,
-            id: createDraftId(),
-            stayDate: date
-          });
-        }
+        next.push({
+          ...draft,
+          id: createDraftId(),
+          stayDate: date,
+          price: resolvedPrice,
+        });
       });
 
       return next.sort((a, b) => a.stayDate.localeCompare(b.stayDate));
@@ -226,8 +255,10 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
     const dates = getDateRange(bulkRange.startsAt, bulkRange.endsAt);
     const price = bulkRange.price.trim();
     const agencyPrice = bulkRange.agencyPrice.trim();
+    const priceRequired = bulkRange.priceType === "special" || bulkRange.priceType === "holiday";
+    const resolvedPrice = priceRequired ? price : price || "0";
 
-    if (dates.length === 0 || !price) return;
+    if (dates.length === 0 || (priceRequired && !resolvedPrice)) return;
 
     setDatePrices(current => {
       let next = [...current];
@@ -237,7 +268,7 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
           id: createDraftId(),
           stayDate: date,
           priceType: bulkRange.priceType,
-          price,
+          price: resolvedPrice,
           agencyPrice: agencyPrice || "",
           note: bulkRange.note,
           isActive: bulkRange.isActive,
@@ -277,11 +308,16 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
           <select
             value={bulkRange.priceType}
             aria-label="ประเภทราคา"
-            onChange={(e) => setBulkRange(c => ({ ...c, priceType: e.target.value as "special" | "holiday" }))}
+            onChange={(e) => setBulkRange(c => ({
+              ...c,
+              priceType: e.target.value as "special" | "holiday" | "pending" | "booked",
+            }))}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="special">ราคาพิเศษ</option>
             <option value="holiday">วันหยุด</option>
+            <option value="pending">รอโอน</option>
+            <option value="booked">ติดจองแล้ว</option>
           </select>
           <Input
             value={bulkRange.price}
@@ -355,6 +391,11 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
             const datePrice = datePriceMap.get(item.date);
             const status = datePrice ? datePrice.priceType : "available";
             const isSelected = selectedDates.includes(item.date);
+            const isPast = item.date < todayKey;
+            const showPrice =
+              datePrice &&
+              (datePrice.priceType === "special" || datePrice.priceType === "holiday") &&
+              Number(datePrice.price) > 0;
 
             const isInRange = false;
             if (rangeStart && !isSelected && selectedDates.length === 0) {
@@ -366,11 +407,16 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
                 key={item.date}
                 type="button"
                 onClick={(e) => handleDateClick(item.date, e.shiftKey)}
-                className={`${getDayClassName(status, isSelected, isInRange)} aspect-square rounded-none border-0 border-b border-r border-slate-200`}
+                className={`${getDayClassName(status, isSelected, isInRange, isPast)} aspect-square rounded-none border-0 border-b border-r border-slate-200`}
               >
                 <div className="flex flex-col items-center">
+                  {isPast && (
+                    <span className="pointer-events-none absolute right-1 top-1 text-[9px] font-medium text-slate-400">
+                      ผ่าน
+                    </span>
+                  )}
                   <span className="text-sm">{item.day}</span>
-                  {datePrice && (
+                  {showPrice && (
                     <span className="mt-1 text-[10px] font-bold opacity-90">
                       {Number(datePrice.price).toLocaleString()}
                     </span>
@@ -393,6 +439,14 @@ export function AdminHouseCalendar({ datePrices, setDatePrices, createDraftId }:
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-sm border border-amber-300 bg-amber-100" />
             <span>{STATUS_LABELS.holiday}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-sm border border-emerald-500 bg-emerald-500" />
+            <span>{STATUS_LABELS.pending}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-sm border border-rose-500 bg-rose-500" />
+            <span>{STATUS_LABELS.booked}</span>
           </div>
         </div>
 
@@ -458,11 +512,16 @@ function EditModal({
             <Label>ประเภท</Label>
             <select
               value={localDraft.priceType}
-              onChange={(e) => setLocalDraft(curr => ({ ...curr, priceType: e.target.value as "special" | "holiday" }))}
+              onChange={(e) => setLocalDraft(curr => ({
+                ...curr,
+                priceType: e.target.value as "special" | "holiday" | "pending" | "booked",
+              }))}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <option value="special">ราคาพิเศษ</option>
               <option value="holiday">วันหยุด</option>
+              <option value="pending">รอโอน</option>
+              <option value="booked">ติดจองแล้ว</option>
             </select>
           </div>
 

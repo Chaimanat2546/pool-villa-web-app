@@ -60,6 +60,10 @@ type HouseImagesResponse = {
 
 export type House = {
   id: string;
+  source: "external" | "internal";
+  sourceId: string;
+  code: string;
+  name?: string;
   coverImage: string | null;
   toilet: string;
   bedroom: string;
@@ -83,6 +87,49 @@ export type House = {
   people: string;
 };
 
+export type PublicHouseGroups = {
+  externalHouses: House[];
+  internalHouses: House[];
+};
+
+export type PublicHouseContact = {
+  name: string | null;
+  phoneNumber: string;
+  role: string | null;
+};
+
+export type PublicHouseFacility = {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string | null;
+};
+
+export type PublicHouseDetail = House & {
+  accommodationTypeName: string | null;
+  areaName: string | null;
+  zoneName: string | null;
+  provinceName: string | null;
+  addressDetails: string | null;
+  googleMapsUrl: string | null;
+  distanceToBeachMeters: number | null;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  youtubeUrl: string | null;
+  additionalDetails: string | null;
+  additionalFeeDetails: string | null;
+  bedroomDetails: string | null;
+  extraGuestPrice: number | null;
+  securityDepositAmount: number | null;
+  poolType: PoolDetailType | null;
+  poolSystem: PoolSystemType | null;
+  poolDescription: string | null;
+  petsAllowed: boolean;
+  petPolicyDetails: string | null;
+  facilities: PublicHouseFacility[];
+  contacts: PublicHouseContact[];
+};
+
 export type HouseImage = {
   propertyId: number;
   imageName: string;
@@ -101,7 +148,7 @@ export type HouseImageGroup = {
 
 export type HouseCardData = Pick<
   House,
-  "id" | "coverImage" | "toilet" | "bedroom" | "farsea" | "price"
+  "id" | "source" | "sourceId" | "code" | "name" | "coverImage" | "toilet" | "bedroom" | "farsea" | "price"
 >;
 
 export type HouseApiData = Omit<House, "swimmingKid"> & {
@@ -268,6 +315,58 @@ export type AdminHouseWeekdayPriceInput = {
   note: string | null;
 };
 
+export const ADMIN_HOUSE_IMAGE_CATEGORIES = [
+  "cover",
+  "exterior",
+  "interior",
+  "review",
+  "kitchen",
+  "bathroom",
+  "bedroom",
+] as const;
+
+export type AdminHouseImageCategory =
+  (typeof ADMIN_HOUSE_IMAGE_CATEGORIES)[number];
+
+export type AdminHouseImage = {
+  id: string;
+  accommodationId: string;
+  category: AdminHouseImageCategory;
+  storagePath: string;
+  publicUrl: string;
+  altText: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminHouseImageApiData = {
+  id: string;
+  accommodation_id: string;
+  category: AdminHouseImageCategory;
+  storage_path: string;
+  public_url: string;
+  alt_text: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminHouseImageInput = {
+  id: string | null;
+  category: AdminHouseImageCategory;
+  storagePath: string;
+  publicUrl: string;
+  altText: string | null;
+  sortOrder: number;
+};
+
+export type AdminHouseImageGroup = {
+  category: AdminHouseImageCategory;
+  label: string;
+  images: AdminHouseImage[];
+};
+
 export type AdminHouseCreateInput = {
   name: string;
   code: string;
@@ -307,6 +406,7 @@ export type AdminHouseUpdateInput = AdminHouseCreateInput & {
 
 export type AdminHouseEditData = AdminHouseUpdateInput & {
   id: string;
+  images: AdminHouseImage[];
   createdAt: string;
   updatedAt: string;
 };
@@ -318,7 +418,7 @@ export type AdminHouseContactInput = {
   isPublic: boolean;
 };
 
-export type AdminHouseDatePriceType = "special" | "holiday";
+export type AdminHouseDatePriceType = "special" | "holiday" | "pending" | "booked";
 
 export type AdminHouseDatePriceInput = {
   stayDate: string;
@@ -403,6 +503,133 @@ type AdminHouseProvinceOptionRow = {
   name: string;
 };
 
+type AdminHouseImageRow = {
+  id: string;
+  accommodation_id: string;
+  category: AdminHouseImageCategory;
+  storage_path: string;
+  public_url: string;
+  alt_text: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type PublicAccommodationImagesRow = {
+  id: string;
+  code: string;
+  images?: AdminHouseImageRow[] | null;
+};
+
+type PublicAccommodationHouseRow = {
+  id: string;
+  name: string;
+  code: string;
+  status: AccommodationStatus;
+  created_at: string;
+  updated_at: string;
+  area?: RelatedValue<{
+    name: string | null;
+    accommodation_zone?: RelatedValue<{
+      name: string | null;
+      province?: RelatedValue<{
+        name: string | null;
+      }>;
+    }>;
+  }>;
+  pricing?: RelatedValue<{
+    normal_price: number | string | null;
+  }>;
+  capacity?: RelatedValue<{
+    bathroom_count: number | null;
+    bedroom_count: number | null;
+    guest_capacity: number | null;
+  }>;
+  address?: RelatedValue<{
+    distance_to_beach_meters: number | null;
+  }>;
+  pool?: RelatedValue<{
+    type: PoolDetailType | null;
+    system: PoolSystemType | null;
+  }>;
+  pet_policy?: RelatedValue<{
+    pets_allowed: boolean | null;
+  }>;
+  facilities?: Array<{
+    facility?: RelatedValue<{
+      slug: string | null;
+    }>;
+  }> | null;
+  images?: AdminHouseImageRow[] | null;
+};
+
+type PublicAccommodationDetailRow = {
+  id: string;
+  name: string;
+  code: string;
+  status: AccommodationStatus;
+  created_at: string;
+  updated_at: string;
+  accommodation_type?: RelatedValue<{
+    name: string | null;
+  }>;
+  area?: RelatedValue<{
+    name: string | null;
+    accommodation_zone?: RelatedValue<{
+      name: string | null;
+      province?: RelatedValue<{
+        name: string | null;
+      }>;
+    }>;
+  }>;
+  pricing?: RelatedValue<{
+    normal_price: number | string | null;
+    extra_guest_price: number | string | null;
+    security_deposit_amount: number | string | null;
+  }>;
+  capacity?: RelatedValue<{
+    bathroom_count: number | null;
+    bedroom_count: number | null;
+    bedroom_details: string | null;
+    guest_capacity: number | null;
+    extra_guest_capacity: number | null;
+  }>;
+  address?: RelatedValue<{
+    address_details: string | null;
+    google_maps_url: string | null;
+    distance_to_beach_meters: number | null;
+  }>;
+  pool?: RelatedValue<{
+    description: string | null;
+    type: PoolDetailType | null;
+    system: PoolSystemType | null;
+  }>;
+  pet_policy?: RelatedValue<{
+    pets_allowed: boolean | null;
+    details: string | null;
+  }>;
+  facilities?: Array<{
+    facility?: RelatedValue<{
+      id: string;
+      name: string;
+      slug: string;
+      icon: string | null;
+    }>;
+  }> | null;
+  contacts?: Array<{
+    name: string | null;
+    phone_number: string;
+    role: string | null;
+    is_public: boolean;
+  }> | null;
+  check_in_time: string | null;
+  check_out_time: string | null;
+  youtube_url: string | null;
+  additional_details: string | null;
+  additional_fee_details: string | null;
+  images?: AdminHouseImageRow[] | null;
+};
+
 type AdminHouseEditRow = {
   id: string;
   name: string;
@@ -467,6 +694,7 @@ type AdminHouseEditRow = {
     note: string | null;
     is_active: boolean;
   }> | null;
+  images?: AdminHouseImageRow[] | null;
 };
 
 type ParsedAdminHouseCreateInput =
@@ -475,6 +703,10 @@ type ParsedAdminHouseCreateInput =
 
 type ParsedAdminHouseUpdateInput =
   | { ok: true; data: AdminHouseUpdateInput }
+  | { ok: false; error: string };
+
+type ParsedAdminHouseImagesInput =
+  | { ok: true; data: AdminHouseImageInput[] }
   | { ok: false; error: string };
 
 const ADMIN_HOUSES_SELECT = `
@@ -508,6 +740,26 @@ const ADMIN_HOUSE_AREAS_SELECT = `
   accommodation_zone:accommodation_zones(
     name,
     province:provinces(name)
+  )
+`;
+
+const ADMIN_HOUSE_IMAGES_SELECT = `
+  id,
+  accommodation_id,
+  category,
+  storage_path,
+  public_url,
+  alt_text,
+  sort_order,
+  created_at,
+  updated_at
+`;
+
+const PUBLIC_ACCOMMODATION_IMAGES_SELECT = `
+  id,
+  code,
+  images:accommodation_images(
+    ${ADMIN_HOUSE_IMAGES_SELECT}
   )
 `;
 
@@ -572,10 +824,125 @@ const ADMIN_HOUSE_EDIT_SELECT = `
     agency_price,
     note,
     is_active
+  ),
+  images:accommodation_images(
+    ${ADMIN_HOUSE_IMAGES_SELECT}
+  )
+`;
+
+const PUBLIC_HOUSES_SELECT = `
+  id,
+  name,
+  code,
+  status,
+  created_at,
+  updated_at,
+  area:accommodation_areas(
+    name,
+    accommodation_zone:accommodation_zones(
+      name,
+      province:provinces(name)
+    )
+  ),
+  pricing:accommodation_pricing(normal_price),
+  capacity:accommodation_capacity(
+    bathroom_count,
+    bedroom_count,
+    guest_capacity
+  ),
+  address:accommodation_addresses(distance_to_beach_meters),
+  pool:pool_details(
+    type,
+    system
+  ),
+  pet_policy:accommodation_pet_policies(pets_allowed),
+  facilities:accommodation_facilities(
+    facility:facilities(slug)
+  ),
+  images:accommodation_images(
+    ${ADMIN_HOUSE_IMAGES_SELECT}
+  )
+`;
+
+const PUBLIC_HOUSE_DETAIL_SELECT = `
+  id,
+  name,
+  code,
+  status,
+  created_at,
+  updated_at,
+  accommodation_type:accommodation_types(name),
+  area:accommodation_areas(
+    name,
+    accommodation_zone:accommodation_zones(
+      name,
+      province:provinces(name)
+    )
+  ),
+  pricing:accommodation_pricing(
+    normal_price,
+    extra_guest_price,
+    security_deposit_amount
+  ),
+  capacity:accommodation_capacity(
+    bathroom_count,
+    bedroom_count,
+    bedroom_details,
+    guest_capacity,
+    extra_guest_capacity
+  ),
+  address:accommodation_addresses(
+    address_details,
+    google_maps_url,
+    distance_to_beach_meters
+  ),
+  pool:pool_details(
+    description,
+    type,
+    system
+  ),
+  pet_policy:accommodation_pet_policies(
+    pets_allowed,
+    details
+  ),
+  facilities:accommodation_facilities(
+    facility:facilities(
+      id,
+      name,
+      slug,
+      icon
+    )
+  ),
+  contacts:accommodation_contacts(
+    name,
+    phone_number,
+    role,
+    is_public
+  ),
+  check_in_time,
+  check_out_time,
+  youtube_url,
+  additional_details,
+  additional_fee_details,
+  images:accommodation_images(
+    ${ADMIN_HOUSE_IMAGES_SELECT}
   )
 `;
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+const ADMIN_HOUSE_IMAGE_CATEGORY_LABELS: Record<
+  AdminHouseImageCategory,
+  string
+> = {
+  cover: "รูปปก",
+  exterior: "ภายนอก",
+  interior: "ภายใน",
+  review: "รีวิว",
+  kitchen: "ห้องครัว",
+  bathroom: "ห้องน้ำ",
+  bedroom: "ห้องนอน",
+};
 
 export function normalizeAdminHouseStatusFilter(
   status: string | null | undefined,
@@ -598,6 +965,71 @@ function toOptionalNumber(value: number | string | null | undefined) {
   const number = Number(value);
 
   return Number.isFinite(number) ? number : null;
+}
+
+export function isAdminHouseImageCategory(
+  category: unknown,
+): category is AdminHouseImageCategory {
+  return (
+    typeof category === "string" &&
+    ADMIN_HOUSE_IMAGE_CATEGORIES.includes(
+      category as AdminHouseImageCategory,
+    )
+  );
+}
+
+export function formatAdminHouseImageCategory(
+  category: AdminHouseImageCategory,
+) {
+  return ADMIN_HOUSE_IMAGE_CATEGORY_LABELS[category];
+}
+
+function sortAdminHouseImages(images: AdminHouseImage[]) {
+  const categoryOrder = new Map(
+    ADMIN_HOUSE_IMAGE_CATEGORIES.map((category, index) => [category, index]),
+  );
+
+  return images.sort((a, b) => {
+    const categorySort =
+      (categoryOrder.get(a.category) ?? Number.MAX_SAFE_INTEGER) -
+      (categoryOrder.get(b.category) ?? Number.MAX_SAFE_INTEGER);
+
+    if (categorySort !== 0) return categorySort;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+
+    return a.storagePath.localeCompare(b.storagePath);
+  });
+}
+
+function sortAdminHouseImageInputs(images: AdminHouseImageInput[]) {
+  const categoryOrder = new Map(
+    ADMIN_HOUSE_IMAGE_CATEGORIES.map((category, index) => [category, index]),
+  );
+
+  return [...images].sort((a, b) => {
+    const categorySort =
+      (categoryOrder.get(a.category) ?? Number.MAX_SAFE_INTEGER) -
+      (categoryOrder.get(b.category) ?? Number.MAX_SAFE_INTEGER);
+
+    if (categorySort !== 0) return categorySort;
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+
+    return a.storagePath.localeCompare(b.storagePath);
+  });
+}
+
+function mapAdminHouseImage(row: AdminHouseImageRow): AdminHouseImage {
+  return {
+    id: row.id,
+    accommodationId: row.accommodation_id,
+    category: row.category,
+    storagePath: row.storage_path,
+    publicUrl: row.public_url,
+    altText: row.alt_text,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 function mapAdminHouseSummary(row: AdminHouseRow): AdminHouseSummary {
@@ -626,6 +1058,181 @@ function mapAdminHouseSummary(row: AdminHouseRow): AdminHouseSummary {
     distanceToBeachMeters: address?.distance_to_beach_meters ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function formatInternalHouseNumber(
+  value: number | null | undefined,
+  fallback = "0",
+) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : fallback;
+}
+
+function formatInternalHousePrice(value: number | string | null | undefined) {
+  const price = toOptionalNumber(value);
+
+  return price === null ? "-" : String(Math.round(price));
+}
+
+function formatInternalHouseSeaDistance(
+  distanceToBeachMeters: number | null | undefined,
+) {
+  if (
+    typeof distanceToBeachMeters !== "number" ||
+    !Number.isFinite(distanceToBeachMeters)
+  ) {
+    return "";
+  }
+
+  return `${distanceToBeachMeters / 1000} km`;
+}
+
+function toHouseFlag(value: boolean) {
+  return value ? "y" : "n";
+}
+
+function getFacilitySlugs(row: PublicAccommodationHouseRow) {
+  return new Set(
+    (row.facilities ?? [])
+      .map((item) => firstRelated(item.facility)?.slug?.trim().toLowerCase())
+      .filter((slug): slug is string => Boolean(slug)),
+  );
+}
+
+function hasFacilitySlug(slugs: Set<string>, candidates: string[]) {
+  return candidates.some((candidate) => slugs.has(candidate));
+}
+
+function getInternalPoolFlag(
+  pool: RelatedValue<{
+    type: PoolDetailType | null;
+    system: PoolSystemType | null;
+  }>,
+) {
+  const poolDetails = firstRelated(pool);
+
+  if (!poolDetails || poolDetails.type === "none") {
+    return "n";
+  }
+
+  return poolDetails.system ?? "y";
+}
+
+function mapInternalAccommodationToHouse(
+  row: PublicAccommodationHouseRow,
+): House {
+  const pricing = firstRelated(row.pricing);
+  const capacity = firstRelated(row.capacity);
+  const address = firstRelated(row.address);
+  const petPolicy = firstRelated(row.pet_policy);
+  const facilitySlugs = getFacilitySlugs(row);
+  const coverImage =
+    getHouseCoverImage((row.images ?? []).map(mapAdminHouseImage))?.publicUrl ??
+    null;
+
+  return {
+    id: row.code,
+    source: "internal",
+    sourceId: row.id,
+    code: row.code,
+    name: row.name,
+    coverImage,
+    toilet: formatInternalHouseNumber(capacity?.bathroom_count),
+    bedroom: formatInternalHouseNumber(capacity?.bedroom_count),
+    farsea: formatInternalHouseSeaDistance(address?.distance_to_beach_meters),
+    price: formatInternalHousePrice(pricing?.normal_price),
+    wifi: toHouseFlag(hasFacilitySlug(facilitySlugs, ["wifi", "wi-fi"])),
+    grill: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, ["grill", "bbq", "barbecue"]),
+    ),
+    pet: toHouseFlag(Boolean(petPolicy?.pets_allowed)),
+    snooker: toHouseFlag(hasFacilitySlug(facilitySlugs, ["snooker"])),
+    discotech: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, ["discotech", "disco", "party"]),
+    ),
+    fancyring: toHouseFlag(hasFacilitySlug(facilitySlugs, ["fancyring"])),
+    tabletennis: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, [
+        "tabletennis",
+        "table-tennis",
+        "pingpong",
+      ]),
+    ),
+    slider: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, ["slider", "water-slider"]),
+    ),
+    billard: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, ["billard", "billiard", "pool-table"]),
+    ),
+    swimmingKid: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, [
+        "swimming_kid",
+        "swimming-kid",
+        "kid-pool",
+        "kids-pool",
+      ]),
+    ),
+    swim: getInternalPoolFlag(row.pool),
+    karaoke: toHouseFlag(hasFacilitySlug(facilitySlugs, ["karaoke"])),
+    airhockey: toHouseFlag(
+      hasFacilitySlug(facilitySlugs, ["airhockey", "air-hockey"]),
+    ),
+    jacuzzi: toHouseFlag(hasFacilitySlug(facilitySlugs, ["jacuzzi"])),
+    bath: toHouseFlag(hasFacilitySlug(facilitySlugs, ["bath", "bathtub"])),
+    people: formatInternalHouseNumber(capacity?.guest_capacity),
+  };
+}
+
+function mapPublicAccommodationDetail(
+  row: PublicAccommodationDetailRow,
+): PublicHouseDetail {
+  const baseHouse = mapInternalAccommodationToHouse(row);
+  const area = firstRelated(row.area);
+  const zone = firstRelated(area?.accommodation_zone);
+  const province = firstRelated(zone?.province);
+  const pricing = firstRelated(row.pricing);
+  const capacity = firstRelated(row.capacity);
+  const address = firstRelated(row.address);
+  const pool = firstRelated(row.pool);
+  const petPolicy = firstRelated(row.pet_policy);
+  const accommodationType = firstRelated(row.accommodation_type);
+  const facilities = (row.facilities ?? [])
+    .map((item) => firstRelated(item.facility))
+    .filter((facility): facility is PublicHouseFacility => Boolean(facility));
+  const contacts = (row.contacts ?? [])
+    .filter((contact) => contact.is_public)
+    .map((contact) => ({
+      name: contact.name,
+      phoneNumber: contact.phone_number,
+      role: contact.role,
+    }));
+
+  return {
+    ...baseHouse,
+    accommodationTypeName: accommodationType?.name ?? null,
+    areaName: area?.name ?? null,
+    zoneName: zone?.name ?? null,
+    provinceName: province?.name ?? null,
+    addressDetails: address?.address_details ?? null,
+    googleMapsUrl: address?.google_maps_url ?? null,
+    distanceToBeachMeters: address?.distance_to_beach_meters ?? null,
+    checkInTime: row.check_in_time,
+    checkOutTime: row.check_out_time,
+    youtubeUrl: row.youtube_url,
+    additionalDetails: row.additional_details,
+    additionalFeeDetails: row.additional_fee_details,
+    bedroomDetails: capacity?.bedroom_details ?? null,
+    extraGuestPrice: toOptionalNumber(pricing?.extra_guest_price),
+    securityDepositAmount: toOptionalNumber(pricing?.security_deposit_amount),
+    poolType: pool?.type ?? null,
+    poolSystem: pool?.system ?? null,
+    poolDescription: pool?.description ?? null,
+    petsAllowed: petPolicy?.pets_allowed ?? false,
+    petPolicyDetails: petPolicy?.details ?? null,
+    facilities,
+    contacts,
   };
 }
 
@@ -719,6 +1326,7 @@ function mapAdminHouseEditData(row: AdminHouseEditRow): AdminHouseEditData {
         isActive: datePrice.is_active,
       }))
       .sort((a, b) => a.stayDate.localeCompare(b.stayDate)),
+    images: sortAdminHouseImages((row.images ?? []).map(mapAdminHouseImage)),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -967,6 +1575,355 @@ export async function getAdminHouseForEdit(
   }
 
   return data ? mapAdminHouseEditData(data) : null;
+}
+
+export async function getAdminHouseImages(
+  accommodationId: string,
+): Promise<AdminHouseImage[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodation_images")
+    .select(ADMIN_HOUSE_IMAGES_SELECT)
+    .eq("accommodation_id", accommodationId)
+    .order("category")
+    .order("sort_order")
+    .order("created_at")
+    .returns<AdminHouseImageRow[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return sortAdminHouseImages(data.map(mapAdminHouseImage));
+}
+
+export function getHouseCoverImage(images: AdminHouseImage[]) {
+  const sortedImages = sortAdminHouseImages([...images]);
+
+  return (
+    sortedImages.find((image) => image.category === "cover") ??
+    sortedImages[0] ??
+    null
+  );
+}
+
+function getHouseCodeCandidates(houseId: string) {
+  const trimmedId = houseId.trim();
+  const withoutPrefix = trimmedId.replace(/^DV-/i, "");
+  const candidates = [
+    trimmedId,
+    trimmedId.toUpperCase(),
+    trimmedId.toLowerCase(),
+    withoutPrefix,
+    `DV-${withoutPrefix}`,
+    `dv-${withoutPrefix}`,
+  ].filter(Boolean);
+
+  return Array.from(new Set(candidates));
+}
+
+function getAllHouseCodeCandidates(houseIds: string[]) {
+  return Array.from(
+    new Set(houseIds.flatMap((houseId) => getHouseCodeCandidates(houseId))),
+  );
+}
+
+function mapAdminHouseImageToHouseImage(
+  image: AdminHouseImage,
+  houseId: string,
+): HouseImage {
+  const numericPropertyId = Number.parseInt(houseId.replace(/\D/g, ""), 10);
+
+  return {
+    propertyId: Number.isFinite(numericPropertyId) ? numericPropertyId : 0,
+    imageName: image.storagePath,
+    url: image.publicUrl,
+    zone: image.category,
+    zoneLabel: formatAdminHouseImageCategory(image.category),
+    order: image.sortOrder,
+    isCoverSelected: image.category === "cover",
+  };
+}
+
+export async function getPublicAccommodationImagesByHouseIds(
+  houseIds: string[],
+) {
+  const uniqueHouseIds = Array.from(
+    new Set(houseIds.map((houseId) => houseId.trim()).filter(Boolean)),
+  );
+
+  if (uniqueHouseIds.length === 0) {
+    return new Map<string, AdminHouseImage[]>();
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(PUBLIC_ACCOMMODATION_IMAGES_SELECT)
+    .eq("status", "published")
+    .in("code", getAllHouseCodeCandidates(uniqueHouseIds))
+    .returns<PublicAccommodationImagesRow[]>();
+
+  if (error) {
+    return new Map<string, AdminHouseImage[]>();
+  }
+
+  const imagesByHouseId = new Map<string, AdminHouseImage[]>();
+
+  uniqueHouseIds.forEach((houseId) => {
+    const codeCandidates = new Set(getHouseCodeCandidates(houseId));
+    const row = data.find((item) => codeCandidates.has(item.code));
+
+    if (!row) return;
+
+    imagesByHouseId.set(
+      houseId,
+      sortAdminHouseImages((row.images ?? []).map(mapAdminHouseImage)),
+    );
+  });
+
+  return imagesByHouseId;
+}
+
+export async function getPublicAccommodationImagesByAccommodationIds(
+  accommodationIds: string[],
+) {
+  const uniqueAccommodationIds = Array.from(
+    new Set(accommodationIds.map((id) => id.trim()).filter(Boolean)),
+  );
+
+  if (uniqueAccommodationIds.length === 0) {
+    return new Map<string, AdminHouseImage[]>();
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(PUBLIC_ACCOMMODATION_IMAGES_SELECT)
+    .eq("status", "published")
+    .in("id", uniqueAccommodationIds)
+    .returns<PublicAccommodationImagesRow[]>();
+
+  if (error) {
+    return new Map<string, AdminHouseImage[]>();
+  }
+
+  const imagesByAccommodationId = new Map<string, AdminHouseImage[]>();
+
+  uniqueAccommodationIds.forEach((accommodationId) => {
+    const row = data.find((item) => item.id === accommodationId);
+
+    if (!row) return;
+
+    imagesByAccommodationId.set(
+      accommodationId,
+      sortAdminHouseImages((row.images ?? []).map(mapAdminHouseImage)),
+    );
+  });
+
+  return imagesByAccommodationId;
+}
+
+export async function getPublicHouseImages(houseId: string) {
+  const imagesByHouseId = await getPublicAccommodationImagesByHouseIds([
+    houseId,
+  ]);
+  const images = imagesByHouseId.get(houseId) ?? [];
+
+  return sortHouseImages(
+    images.map((image) => mapAdminHouseImageToHouseImage(image, houseId)),
+  );
+}
+
+export async function getPublicHouseImagesByAccommodationId(
+  accommodationId: string,
+) {
+  const imagesById = await getPublicAccommodationImagesByAccommodationIds([
+    accommodationId,
+  ]);
+  const images = imagesById.get(accommodationId) ?? [];
+
+  return sortHouseImages(
+    images.map((image) =>
+      mapAdminHouseImageToHouseImage(image, accommodationId),
+    ),
+  );
+}
+
+export async function applyPublicAccommodationCoverImages<
+  T extends HouseCardData,
+>(houses: T[]) {
+  const internalHouses = houses.filter((house) => house.source === "internal");
+  const imagesByAccommodationId =
+    await getPublicAccommodationImagesByAccommodationIds(
+      internalHouses.map((house) => house.sourceId),
+    );
+
+  return houses.map((house) => {
+    if (house.source !== "internal") {
+      return house;
+    }
+
+    const coverImage = getHouseCoverImage(
+      imagesByAccommodationId.get(house.sourceId) ?? [],
+    );
+
+    return coverImage
+      ? {
+        ...house,
+        coverImage: coverImage.publicUrl,
+      }
+      : house;
+  });
+}
+
+export function groupAccommodationImagesByCategory(
+  images: AdminHouseImage[],
+): AdminHouseImageGroup[] {
+  const groups = new Map<AdminHouseImageCategory, AdminHouseImage[]>();
+
+  sortAdminHouseImages([...images]).forEach((image) => {
+    const group = groups.get(image.category);
+
+    if (group) {
+      group.push(image);
+    } else {
+      groups.set(image.category, [image]);
+    }
+  });
+
+  return ADMIN_HOUSE_IMAGE_CATEGORIES.flatMap((category) => {
+    const groupedImages = groups.get(category);
+
+    return groupedImages
+      ? [
+        {
+          category,
+          label: formatAdminHouseImageCategory(category),
+          images: groupedImages,
+        },
+      ]
+      : [];
+  });
+}
+
+export function toAdminHouseImageApiData(
+  image: AdminHouseImage,
+): AdminHouseImageApiData {
+  return {
+    id: image.id,
+    accommodation_id: image.accommodationId,
+    category: image.category,
+    storage_path: image.storagePath,
+    public_url: image.publicUrl,
+    alt_text: image.altText,
+    sort_order: image.sortOrder,
+    created_at: image.createdAt,
+    updated_at: image.updatedAt,
+  };
+}
+
+export async function replaceAdminHouseImages(
+  accommodationId: string,
+  images: AdminHouseImageInput[],
+) {
+  const supabase = await createClient();
+  const rows = sortAdminHouseImageInputs(images).map((image) => ({
+    accommodation_id: accommodationId,
+    category: image.category,
+    storage_path: image.storagePath,
+    public_url: image.publicUrl,
+    alt_text: image.altText,
+    sort_order: image.sortOrder,
+  }));
+
+  const deleteResult = await supabase
+    .from("accommodation_images")
+    .delete()
+    .eq("accommodation_id", accommodationId);
+
+  if (deleteResult.error) {
+    throw new Error(deleteResult.error.message);
+  }
+
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("accommodation_images")
+    .insert(rows)
+    .select(ADMIN_HOUSE_IMAGES_SELECT)
+    .returns<AdminHouseImageRow[]>();
+
+  if (error) {
+    throw new Error(
+      getSupabaseHouseCreateErrorMessage(error, "Image already exists."),
+    );
+  }
+
+  return sortAdminHouseImages(data.map(mapAdminHouseImage));
+}
+
+export async function addAdminHouseImages(
+  accommodationId: string,
+  images: AdminHouseImageInput[],
+) {
+  if (images.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const rows = sortAdminHouseImageInputs(images).map((image) => ({
+    accommodation_id: accommodationId,
+    category: image.category,
+    storage_path: image.storagePath,
+    public_url: image.publicUrl,
+    alt_text: image.altText,
+    sort_order: image.sortOrder,
+  }));
+
+  const { data, error } = await supabase
+    .from("accommodation_images")
+    .insert(rows)
+    .select(ADMIN_HOUSE_IMAGES_SELECT)
+    .returns<AdminHouseImageRow[]>();
+
+  if (error) {
+    throw new Error(
+      getSupabaseHouseCreateErrorMessage(error, "Image already exists."),
+    );
+  }
+
+  return sortAdminHouseImages(data.map(mapAdminHouseImage));
+}
+
+export async function deleteAdminHouseImages(
+  accommodationId: string,
+  imageIds: string[],
+) {
+  const uniqueImageIds = Array.from(
+    new Set(imageIds.map((id) => id.trim()).filter(Boolean)),
+  );
+
+  if (uniqueImageIds.length === 0) {
+    return [];
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodation_images")
+    .delete()
+    .eq("accommodation_id", accommodationId)
+    .in("id", uniqueImageIds)
+    .select(ADMIN_HOUSE_IMAGES_SELECT)
+    .returns<AdminHouseImageRow[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return sortAdminHouseImages(data.map(mapAdminHouseImage));
 }
 
 function getTrimmedString(value: unknown) {
@@ -1266,7 +2223,12 @@ function isPoolSystemType(system: unknown): system is PoolSystemType {
 }
 
 function isDatePriceType(type: unknown): type is AdminHouseDatePriceType {
-  return type === "special" || type === "holiday";
+  return (
+    type === "special" ||
+    type === "holiday" ||
+    type === "pending" ||
+    type === "booked"
+  );
 }
 
 function parseBooleanInput(value: unknown, fallback = false) {
@@ -1290,6 +2252,88 @@ function parseStringArray(value: unknown, fieldName: string) {
     .filter(Boolean);
 
   return { ok: true as const, value: Array.from(new Set(values)) };
+}
+
+export function parseAdminHouseImagesInput(
+  value: unknown,
+): ParsedAdminHouseImagesInput {
+  const imagesValue =
+    value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>).images
+      : value;
+
+  if (imagesValue === null || imagesValue === undefined) {
+    return { ok: true, data: [] };
+  }
+
+  if (!Array.isArray(imagesValue)) {
+    return { ok: false, error: "images must be an array." };
+  }
+
+  const images: AdminHouseImageInput[] = [];
+  const usedStoragePaths = new Set<string>();
+  let coverCount = 0;
+
+  for (const [index, item] of imagesValue.entries()) {
+    if (!item || typeof item !== "object") {
+      return { ok: false, error: "images is invalid." };
+    }
+
+    const row = item as Record<string, unknown>;
+    const id = getOptionalTrimmedString(row.id);
+    const category = getTrimmedString(row.category);
+    const storagePath = parseRequiredString(row.storage_path, "storage_path");
+    const publicUrl = parseRequiredString(row.public_url, "public_url");
+    const sortOrder = parseNumberInput(row.sort_order ?? index, "sort_order", {
+      required: true,
+      integer: true,
+      min: 0,
+    });
+
+    if (!isAdminHouseImageCategory(category)) {
+      return { ok: false, error: "image category is invalid." };
+    }
+
+    if (!storagePath.ok) {
+      return { ok: false, error: storagePath.error };
+    }
+
+    if (!publicUrl.ok) {
+      return { ok: false, error: publicUrl.error };
+    }
+
+    if (!sortOrder.ok) {
+      return { ok: false, error: sortOrder.error };
+    }
+
+    if (usedStoragePaths.has(storagePath.value)) {
+      return {
+        ok: false,
+        error: "images cannot contain duplicate storage_path values.",
+      };
+    }
+
+    usedStoragePaths.add(storagePath.value);
+
+    if (category === "cover") {
+      coverCount += 1;
+    }
+
+    if (coverCount > 1) {
+      return { ok: false, error: "images can contain only one cover image." };
+    }
+
+    images.push({
+      id,
+      category,
+      storagePath: storagePath.value,
+      publicUrl: publicUrl.value,
+      altText: getOptionalTrimmedString(row.alt_text),
+      sortOrder: sortOrder.value ?? index,
+    });
+  }
+
+  return { ok: true, data: sortAdminHouseImageInputs(images) };
 }
 
 function parseContacts(value: unknown) {
@@ -1346,8 +2390,9 @@ function parseDatePrices(value: unknown) {
     const row = item as Record<string, unknown>;
     const stayDate = getTrimmedString(row.stay_date);
     const priceType = row.price_type;
+    const priceRequired = priceType === "special" || priceType === "holiday";
     const price = parseNumberInput(row.price, "date price", {
-      required: true,
+      required: priceRequired,
       min: 0,
     });
     const agencyPrice = parseNumberInput(row.agency_price, "date agency price", {
@@ -1362,7 +2407,7 @@ function parseDatePrices(value: unknown) {
     if (!isDatePriceType(priceType)) {
       return {
         ok: false as const,
-        error: "price_type must be special or holiday.",
+        error: "price_type must be special, holiday, pending, or booked.",
       };
     }
 
@@ -1567,6 +2612,9 @@ export async function updateAdminHouse(
 function mapExternalHouse(house: ExternalHouse): House {
   return {
     id: house.h_id,
+    source: "external",
+    sourceId: house.h_id,
+    code: house.h_id,
     coverImage: house.img_name
       ? `${COVER_IMAGE_BASE_URL}/${house.img_name}`
       : null,
@@ -1593,7 +2641,7 @@ function mapExternalHouse(house: ExternalHouse): House {
   };
 }
 
-export async function getHouses(): Promise<House[]> {
+export async function getExternalHouses(): Promise<House[]> {
   const res = await fetch(HOUSE_API_URL, {
     cache: "no-store",
   });
@@ -1607,10 +2655,92 @@ export async function getHouses(): Promise<House[]> {
   return houses.map(mapExternalHouse);
 }
 
-export async function getHouseById(id: string): Promise<House | null> {
-  const houses = await getHouses();
+export async function getInternalHouses(): Promise<House[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(PUBLIC_HOUSES_SELECT)
+    .eq("status", "published")
+    .order("created_at", { ascending: false })
+    .limit(300)
+    .returns<PublicAccommodationHouseRow[]>();
 
-  return houses.find((house) => house.id === id) ?? null;
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data.map(mapInternalAccommodationToHouse);
+}
+
+export async function getPublicHouseGroups(): Promise<PublicHouseGroups> {
+  const [externalHouses, internalHouses] = await Promise.all([
+    getExternalHouses(),
+    getInternalHouses(),
+  ]);
+
+  return {
+    externalHouses,
+    internalHouses,
+  };
+}
+
+export async function getHouses(): Promise<House[]> {
+  return getInternalHouses();
+}
+
+export async function getHouseById(id: string): Promise<House | null> {
+  return getInternalHouseByCode(id);
+}
+
+export async function getInternalHouseByCode(
+  code: string,
+): Promise<House | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(PUBLIC_HOUSES_SELECT)
+    .eq("status", "published")
+    .in("code", getHouseCodeCandidates(code))
+    .limit(1)
+    .returns<PublicAccommodationHouseRow[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = data[0];
+
+  return row ? mapInternalAccommodationToHouse(row) : null;
+}
+
+export async function getInternalHouseDetailByCode(
+  code: string,
+): Promise<PublicHouseDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("accommodations")
+    .select(PUBLIC_HOUSE_DETAIL_SELECT)
+    .eq("status", "published")
+    .in("code", getHouseCodeCandidates(code))
+    .limit(1)
+    .returns<PublicAccommodationDetailRow[]>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const row = data[0];
+
+  return row ? mapPublicAccommodationDetail(row) : null;
+}
+
+export async function getExternalHouseById(
+  id: string,
+): Promise<House | null> {
+  const normalizedId = id.replace(/\D/g, "");
+  const houses = await getExternalHouses();
+
+  return houses.find((house) => house.id === normalizedId) ?? null;
 }
 
 function getHouseImageUrl(imageName: string) {
@@ -1849,6 +2979,16 @@ export function getHousesByIds(houses: House[], houseIds: string[]) {
     .filter((house): house is House => house !== undefined);
 }
 
+export function getHousesBySourceIds(houses: House[], sourceIds: string[]) {
+  const housesBySourceId = new Map(
+    houses.map((house) => [house.sourceId, house]),
+  );
+
+  return sourceIds
+    .map((sourceId) => housesBySourceId.get(sourceId))
+    .filter((house): house is House => house !== undefined);
+}
+
 function getQueryHouseIds(query: string) {
   return query
     .match(/(?:dv[-\s]*)?\d+/g)
@@ -1864,12 +3004,38 @@ function matchesHouseQuery(
   if (!query) return true;
 
   if (queryHouseIds) {
-    return queryHouseIds.has(house.id);
+    const candidates = [house.code, house.id, house.sourceId].filter(Boolean);
+
+    return candidates.some((candidate) => {
+      const digits = candidate.replace(/\D/g, "");
+
+      return digits ? queryHouseIds.has(digits) : false;
+    });
   }
 
+  const normalizedQuery = query.toLowerCase();
+
   return (
-    house.id.toLowerCase().includes(query) ||
-    `dv-${house.id}`.toLowerCase().includes(query)
+    house.code.toLowerCase().includes(normalizedQuery) ||
+    house.id.toLowerCase().includes(normalizedQuery) ||
+    house.sourceId.toLowerCase().includes(normalizedQuery) ||
+    (house.name?.toLowerCase().includes(normalizedQuery) ?? false)
+  );
+}
+
+export async function getPublicHouseById(id: string): Promise<House | null> {
+  const normalizedId = id.trim().toLowerCase();
+  const { externalHouses, internalHouses } = await getPublicHouseGroups();
+  const allHouses = [...internalHouses, ...externalHouses];
+
+  return (
+    allHouses.find((house) => {
+      const candidates = [house.code, house.id, house.sourceId].map((value) =>
+        value.toLowerCase(),
+      );
+
+      return candidates.includes(normalizedId);
+    }) ?? null
   );
 }
 

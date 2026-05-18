@@ -23,6 +23,7 @@ type AdminSidebarItem = {
 const ADMIN_SIDEBAR_ITEMS: AdminSidebarItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/houses", label: "บ้านพัก", icon: House },
+  { href: "/admin/houses/recommendations", label: "บ้านแนะนำ (ระบบ)", icon: Sparkles },
   { href: "/admin/recommendations", label: "บ้านแนะนำ", icon: Sparkles },
   { href: "/admin/blog", label: "บทความ", icon: BookOpenText },
   { href: "/admin/blog/new", label: "เขียนบทความ", icon: PencilLine },
@@ -31,6 +32,13 @@ const ADMIN_SIDEBAR_ITEMS: AdminSidebarItem[] = [
 
 function isActiveAdminItem(href: string, pathname: string) {
   if (href === "/admin") return pathname === href;
+  if (href === "/admin/houses") {
+    return (
+      pathname === href ||
+      (pathname.startsWith("/admin/houses/") &&
+        !pathname.startsWith("/admin/houses/recommendations"))
+    );
+  }
   if (href === "/admin/blog") {
     return (
       pathname === href ||

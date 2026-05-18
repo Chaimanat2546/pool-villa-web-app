@@ -13,6 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminHouseCalendar } from "./AdminHouseCalendar";
+import {
+  AdminHouseImageManager,
+  type PendingHouseImageDraft,
+} from "./AdminHouseImageManager";
 
 type HouseCreateFormProps = {
   options: AdminHouseCreateOptions;
@@ -23,6 +27,10 @@ type HouseFormResponse = {
   data?: {
     id?: string;
   };
+  error?: string;
+};
+
+type HouseImageMutationResponse = {
   error?: string;
 };
 
@@ -37,7 +45,7 @@ type ContactDraft = {
 type DatePriceDraft = {
   id: string;
   stayDate: string;
-  priceType: "special" | "holiday";
+  priceType: "special" | "holiday" | "pending" | "booked";
   price: string;
   agencyPrice: string;
   note: string;
@@ -76,6 +84,18 @@ async function readApiResponse(response: Response) {
   const body = (await response
     .json()
     .catch(() => null)) as HouseFormResponse | null;
+
+  if (!response.ok) {
+    throw new Error(body?.error ?? "Request failed.");
+  }
+
+  return body ?? {};
+}
+
+async function readMutationResponse(response: Response) {
+  const body = (await response
+    .json()
+    .catch(() => null)) as HouseImageMutationResponse | null;
 
   if (!response.ok) {
     throw new Error(body?.error ?? "Request failed.");
@@ -154,15 +174,66 @@ function getInitialDatePrices(house: AdminHouseEditData | undefined) {
   );
 }
 
+async function deleteHouseImages(houseId: string, imageIds: string[]) {
+  if (imageIds.length === 0) return;
+
+  const response = await fetch(`/api/admin/houses/${houseId}/images`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids: imageIds }),
+  });
+
+  await readMutationResponse(response);
+}
+
+async function uploadHouseImages(
+  houseId: string,
+  images: PendingHouseImageDraft[],
+) {
+  if (images.length === 0) return;
+
+  const categoryGroups = images.reduce(
+    (groups, image) => {
+      const group = groups.get(image.category) ?? [];
+      group.push(image);
+      groups.set(image.category, group);
+      return groups;
+    },
+    new Map<PendingHouseImageDraft["category"], PendingHouseImageDraft[]>(),
+  );
+
+  for (const [category, categoryImages] of categoryGroups.entries()) {
+    const formData = new FormData();
+
+    categoryImages.forEach((image) => {
+      formData.append("files", image.file);
+      formData.append("sort_orders", String(image.sortOrder));
+    });
+
+    formData.append("category", category);
+
+    const response = await fetch(`/api/admin/houses/${houseId}/images`, {
+      method: "POST",
+      body: formData,
+    });
+
+    await readMutationResponse(response);
+  }
+}
+
 export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"details" | "pricing">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "pricing" | "images">("details");
   const [contacts, setContacts] = useState<ContactDraft[]>(() =>
     getInitialContacts(house),
   );
   const [datePrices, setDatePrices] = useState<DatePriceDraft[]>(() =>
     getInitialDatePrices(house),
   );
+  const [pendingImages, setPendingImages] = useState<PendingHouseImageDraft[]>(
+    [],
+  );
+  const [deletedImageIds, setDeletedImageIds] = useState<string[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -280,8 +351,19 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
       );
       const body = await readApiResponse(response);
       const id = body.data?.id;
+      const savedHouseId = isEditing && house ? house.id : id;
+
+      if (!savedHouseId) {
+        throw new Error("House was saved but the id was not returned.");
+      }
+
+      await deleteHouseImages(savedHouseId, deletedImageIds);
+      await uploadHouseImages(savedHouseId, pendingImages);
 
       if (isEditing) {
+        pendingImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+        setPendingImages([]);
+        setDeletedImageIds([]);
         setFeedback("บันทึกแล้ว");
         setIsPending(false);
         router.refresh();
@@ -289,7 +371,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
       }
 
       router.push(
-        id
+        savedHouseId
           ? `/admin/houses?q=${encodeURIComponent(getText(formData, "code"))}`
           : "/admin/houses",
       );
@@ -303,6 +385,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
   const tabs = [
     { id: "details", label: "รายละเอียดบ้าน" },
     { id: "pricing", label: "ราคา" },
+    { id: "images", label: "รูปภาพ" },
   ] as const;
 
   return (
@@ -875,6 +958,17 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
             </section>
           )}
         </div>
+      </div>
+
+      <div className={activeTab === "images" ? "space-y-6" : "hidden"}>
+        <AdminHouseImageManager
+          existingImages={house?.images ?? []}
+          pendingImages={pendingImages}
+          deletedImageIds={deletedImageIds}
+          createDraftId={createDraftId}
+          setPendingImages={setPendingImages}
+          setDeletedImageIds={setDeletedImageIds}
+        />
       </div>
 
       <div className="flex justify-end">

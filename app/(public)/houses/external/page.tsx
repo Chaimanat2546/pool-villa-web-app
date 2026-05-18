@@ -1,19 +1,18 @@
 import { Suspense } from "react";
 import {
-  applyPublicAccommodationCoverImages,
   getBudgetHouses,
-  getInternalHouses,
-  getHousesBySourceIds,
+  getExternalHouses,
+  getHousesByIds,
   getNearSeaHouses,
 } from "@/lib/houses";
 import { getPublishedBlogPosts } from "@/lib/blog";
-import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
-import { BlogSection } from "./BlogSection";
-import { HouseSection } from "./HouseSection";
+import { getPublicHouseRecommendations } from "@/lib/house-recommendations";
+import { BlogSection } from "../BlogSection";
+import { HouseSection } from "../HouseSection";
 import Image from "next/image";
 import { Search } from "lucide-react";
 
-export default function HousesPage() {
+export default function ExternalHousesPage() {
   return (
     <div className="flex flex-col gap-10 pb-20">
       <HeroSearch />
@@ -40,7 +39,7 @@ function HeroSearch() {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/35" />
       <form
-        action="/houses/search"
+        action="/houses/external/search"
         method="get"
         className="absolute left-1/2 top-[80%] z-10 flex w-[min(92vw,760px)] -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-lg border border-border bg-background/95 p-2 shadow-xl backdrop-blur"
       >
@@ -68,14 +67,13 @@ function HeroSearch() {
 
 async function HouseList() {
   const [houses, recommendations, blogPosts] = await Promise.all([
-    getInternalHouses(),
-    getPublicAccommodationRecommendations(),
+    getExternalHouses(),
+    getPublicHouseRecommendations(),
     getPublishedBlogPosts(3),
   ]);
-  const housesWithCovers = await applyPublicAccommodationCoverImages(houses);
-  const recommendedHouses = getHousesBySourceIds(
-    housesWithCovers,
-    recommendations.map((recommendation) => recommendation.accommodationId),
+  const recommendedHouses = getHousesByIds(
+    houses,
+    recommendations.map((recommendation) => recommendation.hId),
   );
 
   return (
@@ -84,30 +82,22 @@ async function HouseList() {
         <HouseSection
           title="บ้านพักแนะนำ"
           houses={recommendedHouses}
-          seeMoreHref="/houses/search?recommended=y"
-        />
-      )}
-
-      {housesWithCovers.length > 0 && (
-        <HouseSection
-          title="บ้านพักของเรา"
-          houses={housesWithCovers.slice(0, 12)}
-          seeMoreHref="/houses/search"
+          seeMoreHref="/houses/external/search?recommended=y"
         />
       )}
 
       <HouseSection
         title="บ้านพักใกล้ทะเล"
-        houses={getNearSeaHouses(housesWithCovers)}
-        seeMoreHref="/houses/search?maxFarsea=5&sort=farsea_asc"
+        houses={getNearSeaHouses(houses)}
+        seeMoreHref="/houses/external/search?maxFarsea=5&sort=farsea_asc"
       />
 
       <BlogSection posts={blogPosts} />
 
       <HouseSection
         title="บ้านพักราคาประหยัด"
-        houses={getBudgetHouses(housesWithCovers)}
-        seeMoreHref="/houses/search?maxPrice=7000&sort=price_asc"
+        houses={getBudgetHouses(houses)}
+        seeMoreHref="/houses/external/search?maxPrice=7000&sort=price_asc"
       />
     </>
   );

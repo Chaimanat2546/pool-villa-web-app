@@ -13,6 +13,7 @@ import type {
 
 type VillaCalendarProps = {
   villaId: string;
+  source?: "external" | "internal";
 };
 
 type CalendarResponse = {
@@ -68,7 +69,7 @@ function getDayClassName(status: VillaCalendarDayStatus) {
   }
 
   if (status === "pending") {
-    return `${base} border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600`;
+    return `${base} cursor-not-allowed border-emerald-500 bg-emerald-500 text-white`;
   }
 
   if (status === "holiday") {
@@ -104,7 +105,10 @@ function StatusSwatch({ status }: { status: VillaCalendarDayStatus }) {
   );
 }
 
-export function VillaCalendar({ villaId }: VillaCalendarProps) {
+export function VillaCalendar({
+  villaId,
+  source = "external",
+}: VillaCalendarProps) {
   const [days, setDays] = useState<VillaCalendarDay[]>([]);
   const [month, setMonth] = useState("");
   const [firstDayIndex, setFirstDayIndex] = useState(0);
@@ -120,12 +124,12 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
 
   const fetchCalendar = useCallback(async () => {
     const response = await fetch(
-      `/api/villa-calendar?id=${encodeURIComponent(villaId)}&offset=${offset}`,
+      `/api/villa-calendar?id=${encodeURIComponent(villaId)}&offset=${offset}&source=${source}`,
       { cache: "no-store" },
     );
 
     return readApiResponse<CalendarResponse>(response);
-  }, [villaId, offset]);
+  }, [villaId, offset, source]);
 
   useEffect(() => {
     let isActive = true;
@@ -186,7 +190,7 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
   async function loadDayDetail(day: number) {
     const status = days.find((item) => item.day === day)?.status ?? null;
 
-    if (status === "booked" || status === "disabled") return;
+    if (status === "booked" || status === "pending" || status === "disabled") return;
 
     setSelectedDay(day);
     setSelectedStatus(status);
@@ -195,7 +199,7 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
 
     try {
       const response = await fetch(
-        `/api/villa-calendar/day?id=${encodeURIComponent(villaId)}&offset=${offset}&day=${day}`,
+        `/api/villa-calendar/day?id=${encodeURIComponent(villaId)}&offset=${offset}&day=${day}&source=${source}`,
         { cache: "no-store" },
       );
       const body = await readApiResponse<DayDetailResponse>(response);
@@ -272,7 +276,9 @@ export function VillaCalendar({ villaId }: VillaCalendarProps) {
             }
 
             const isDisabled =
-              item.status === "booked" || item.status === "disabled";
+              item.status === "booked" ||
+              item.status === "pending" ||
+              item.status === "disabled";
 
             return (
               <button
