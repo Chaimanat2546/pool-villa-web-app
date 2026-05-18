@@ -5,6 +5,7 @@ export type {
   VillaCalendarDayDetail,
 } from "./villa-calendar-types";
 
+import { existsSync } from "node:fs";
 import type {
   VillaCalendarDayStatus,
   VillaCalendarMonth,
@@ -13,6 +14,7 @@ import type {
 
 type Browser = import("puppeteer-core").Browser;
 type Page = import("puppeteer-core").Page;
+type Chromium = typeof import("@sparticuz/chromium").default;
 
 const VILLA_CALENDAR_BASE_URL = "https://www.pattayapartypoolvilla.com/v";
 const CALENDAR_SELECTOR = "#calendarBooking";
@@ -57,6 +59,41 @@ function getDayCacheKey(villaId: string, offset: number, day: number) {
   return `${villaId}:${offset}:${day}`;
 }
 
+function getExistingBrowserPath(paths: Array<string | undefined>) {
+  return paths.find((path) => path && existsSync(path)) || null;
+}
+
+async function getBrowserExecutablePath(chromium: Chromium) {
+  const localBrowserPath = getExistingBrowserPath([
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    process.env.CHROME_EXECUTABLE_PATH,
+    process.env.GOOGLE_CHROME_BIN,
+    process.env.LOCALAPPDATA
+      ? `${process.env.LOCALAPPDATA}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env.PROGRAMFILES
+      ? `${process.env.PROGRAMFILES}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+    process.env["PROGRAMFILES(X86)"]
+      ? `${process.env["PROGRAMFILES(X86)"]}\\Google\\Chrome\\Application\\chrome.exe`
+      : undefined,
+  ]);
+
+  if (localBrowserPath) {
+    return localBrowserPath;
+  }
+
+  const chromiumPath = await chromium.executablePath();
+
+  if (chromiumPath && existsSync(chromiumPath)) {
+    return chromiumPath;
+  }
+
+  throw new Error(
+    "Unable to find a browser executable for villa calendar scraping. Set PUPPETEER_EXECUTABLE_PATH or install Chrome/Chromium.",
+  );
+}
+
 async function getBrowser() {
   if (!browserPromise) {
     browserPromise = (async () => {
@@ -67,6 +104,7 @@ async function getBrowser() {
       const headless = "shell";
 
       chromium.setGraphicsMode = false;
+      const executablePath = await getBrowserExecutablePath(chromium);
 
       return puppeteer.launch({
         args: await puppeteer.defaultArgs({
@@ -77,10 +115,13 @@ async function getBrowser() {
           width: 1280,
           height: 720,
         },
-        executablePath: await chromium.executablePath(),
+        executablePath,
         headless,
       });
-    })();
+    })().catch((error) => {
+      browserPromise = null;
+      throw error;
+    });
   }
 
   return browserPromise;
