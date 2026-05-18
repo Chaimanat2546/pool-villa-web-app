@@ -3,7 +3,7 @@
 import { Plus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FormEvent, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   AccommodationStatus,
   AdminHouseCreateOptions,
@@ -112,6 +112,28 @@ function getText(formData: FormData, name: string) {
 
 function getOptionalText(formData: FormData, name: string) {
   return getText(formData, name) || null;
+}
+
+function formatAreaLabel(area: AdminHouseCreateOptions["areas"][number]) {
+  return [area.provinceName, area.zoneName, area.name].filter(Boolean).join(" / ");
+}
+
+function resolveAreaId(
+  value: string,
+  labelToId: Map<string, string>,
+  idToLabel: Map<string, string>,
+) {
+  if (idToLabel.has(value)) return value;
+  return labelToId.get(value) ?? "";
+}
+
+function filterAreaOptions(
+  options: { id: string; label: string }[],
+  query: string,
+) {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return options;
+  return options.filter((option) => option.label.toLowerCase().includes(trimmed));
 }
 
 function getWeekdayPrices(formData: FormData) {
@@ -237,8 +259,58 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
   const [isPending, setIsPending] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const canSubmit = options.areas.length > 0 && options.types.length > 0;
+  const [typeOptions, setTypeOptions] = useState(options.types);
+  const [areaOptions, setAreaOptions] = useState(options.areas);
+  const [facilityOptions, setFacilityOptions] = useState(options.facilities);
+  const [selectedTypeId, setSelectedTypeId] = useState(house?.accommodationTypeId ?? "");
+  const [selectedAreaId, setSelectedAreaId] = useState(house?.accommodationAreaId ?? "");
+  const [selectedFacilityIds, setSelectedFacilityIds] = useState<string[]>(house?.facilityIds ?? []);
+  const [areaQuery, setAreaQuery] = useState(() => {
+    const selected = options.areas.find((item) => item.id === house?.accommodationAreaId);
+    return selected ? formatAreaLabel(selected) : "";
+  });
+  const [isAreaMenuOpen, setIsAreaMenuOpen] = useState(false);
+  const [facilityNewName, setFacilityNewName] = useState("");
+  const [facilityNewSlug, setFacilityNewSlug] = useState("");
+  const [facilityNewIcon, setFacilityNewIcon] = useState("");
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newAreaName, setNewAreaName] = useState("");
+  const [newAreaZoneId, setNewAreaZoneId] = useState("");
+  const [isAddTypeOpen, setIsAddTypeOpen] = useState(false);
+  const [isAddAreaOpen, setIsAddAreaOpen] = useState(false);
+  const [isAddFacilityOpen, setIsAddFacilityOpen] = useState(false);
+  const blurTimeoutRef = useRef<number | null>(null);
+  const canSubmit = areaOptions.length > 0 && typeOptions.length > 0 && Boolean(selectedAreaId) && Boolean(selectedTypeId);
   const isEditing = Boolean(house);
+  const zoneOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    areaOptions.forEach((area) => {
+      if (area.accommodationZoneId && area.zoneName) {
+        map.set(area.accommodationZoneId, [area.provinceName, area.zoneName].filter(Boolean).join(" / "));
+      }
+    });
+    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+  }, [areaOptions]);
+  const areaAutocompleteOptions = useMemo(
+    () => areaOptions.map((item) => ({ id: item.id, label: formatAreaLabel(item) })),
+    [areaOptions],
+  );
+  const areaLabelById = useMemo(
+    () => new Map(areaAutocompleteOptions.map((item) => [item.id, item.label])),
+    [areaAutocompleteOptions],
+  );
+  const areaIdByLabel = useMemo(
+    () => new Map(areaAutocompleteOptions.map((item) => [item.label, item.id])),
+    [areaAutocompleteOptions],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        window.clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
 
   function addContact() {
     setContacts((current) => [
@@ -265,6 +337,67 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
     setContacts((current) => current.filter((contact) => contact.id !== id));
   }
 
+  async function createSetting(payload: Record<string, unknown>) {
+    const response = await fetch("/api/admin/houses/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await readApiResponse(response);
+    return body.data?.id ?? "";
+  }
+
+  async function addNewType() {
+    if (!newTypeName.trim()) return;
+    try {
+      const id = await createSetting({ kind: "type", name: newTypeName.trim() });
+      if (!id) return;
+      const next = { id, name: newTypeName.trim() };
+      setTypeOptions((current) => [next, ...current]);
+      setSelectedTypeId(id);
+      setNewTypeName("");
+      setIsAddTypeOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed.");
+    }
+  }
+
+  async function addNewArea() {
+    if (!newAreaName.trim() || !newAreaZoneId) return;
+    try {
+      const id = await createSetting({ kind: "area", name: newAreaName.trim(), accommodation_zone_id: newAreaZoneId });
+      if (!id) return;
+      const zone = zoneOptions.find((item) => item.id === newAreaZoneId);
+      const parts = (zone?.label ?? "").split(" / ");
+      const next = { id, name: newAreaName.trim(), accommodationZoneId: newAreaZoneId, provinceName: parts[0] ?? null, zoneName: parts[1] ?? null };
+      setAreaOptions((current) => [next, ...current]);
+      setSelectedAreaId(id);
+      setAreaQuery([next.provinceName, next.zoneName, next.name].filter(Boolean).join(" / "));
+      setNewAreaName("");
+      setNewAreaZoneId("");
+      setIsAddAreaOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed.");
+    }
+  }
+
+  async function addNewFacility() {
+    if (!facilityNewName.trim() || !facilityNewSlug.trim()) return;
+    try {
+      const id = await createSetting({ kind: "facility", name: facilityNewName.trim(), slug: facilityNewSlug.trim(), icon: facilityNewIcon.trim() || null });
+      if (!id) return;
+      const next = { id, name: facilityNewName.trim(), slug: facilityNewSlug.trim(), icon: facilityNewIcon.trim() || null };
+      setFacilityOptions((current) => [next, ...current]);
+      setSelectedFacilityIds((current) => [...current, id]);
+      setFacilityNewName("");
+      setFacilityNewSlug("");
+      setFacilityNewIcon("");
+      setIsAddFacilityOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Request failed.");
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -287,8 +420,8 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
             name: getText(formData, "name"),
             code: getText(formData, "code"),
             status: getText(formData, "status"),
-            accommodation_type_id: getText(formData, "accommodation_type_id"),
-            accommodation_area_id: getText(formData, "accommodation_area_id"),
+            accommodation_type_id: selectedTypeId,
+            accommodation_area_id: selectedAreaId,
             normal_price: getText(formData, "normal_price"),
             normal_agency_price: getOptionalText(formData, "normal_agency_price"),
             extra_guest_price: getOptionalText(formData, "extra_guest_price"),
@@ -324,10 +457,7 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
             pool_description: getOptionalText(formData, "pool_description"),
             pets_allowed: getText(formData, "pets_allowed") === "true",
             pet_policy_details: getOptionalText(formData, "pet_policy_details"),
-            facility_ids: formData
-              .getAll("facility_ids")
-              .map((value) => (typeof value === "string" ? value : ""))
-              .filter(Boolean),
+            facility_ids: selectedFacilityIds,
             contacts: contacts
               .map((contact) => ({
                 name: contact.name.trim() || null,
@@ -461,41 +591,104 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
               )}
 
               <Field label="ประเภทที่พัก" htmlFor="accommodation_type_id">
-                <select
-                  id="accommodation_type_id"
-                  name="accommodation_type_id"
-                  defaultValue={house?.accommodationTypeId ?? ""}
-                  required
-                  disabled={!canSubmit}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">เลือกประเภท</option>
-                  {options.types.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="space-y-2">
+                  <select
+                    id="accommodation_type_id"
+                    value={selectedTypeId}
+                    onChange={(event) => setSelectedTypeId(event.target.value)}
+                    required
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">เลือกประเภท</option>
+                    {typeOptions.map((type) => (
+                      <option key={type.id} value={type.id}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button type="button" variant="outline" onClick={() => setIsAddTypeOpen((current) => !current)}>
+                    <Plus aria-hidden />
+                    {isAddTypeOpen ? "ซ่อนเพิ่มประเภท" : "เพิ่มประเภทใหม่"}
+                  </Button>
+                  {isAddTypeOpen ? (
+                    <div className="flex gap-2">
+                      <Input value={newTypeName} onChange={(event) => setNewTypeName(event.target.value)} placeholder="เพิ่มประเภทใหม่" />
+                      <Button type="button" variant="outline" onClick={addNewType}><Plus aria-hidden />Add</Button>
+                    </div>
+                  ) : null}
+                </div>
               </Field>
 
-              <Field label="พื้นที่" htmlFor="accommodation_area_id">
-                <select
-                  id="accommodation_area_id"
-                  name="accommodation_area_id"
-                  defaultValue={house?.accommodationAreaId ?? ""}
-                  required
-                  disabled={!canSubmit}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <option value="">เลือกพื้นที่</option>
-                  {options.areas.map((area) => (
-                    <option key={area.id} value={area.id}>
-                      {[area.provinceName, area.zoneName, area.name]
-                        .filter(Boolean)
-                        .join(" / ")}
-                    </option>
-                  ))}
-                </select>
+              <Field label="พื้นที่" htmlFor="accommodation_area_search">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Input
+                      id="accommodation_area_search"
+                      value={areaQuery}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setAreaQuery(nextValue);
+                        const resolvedId = resolveAreaId(
+                          nextValue,
+                          areaIdByLabel,
+                          areaLabelById,
+                        );
+                        setSelectedAreaId(resolvedId);
+                        setIsAreaMenuOpen(true);
+                      }}
+                      onFocus={() => setIsAreaMenuOpen(true)}
+                      onBlur={() => {
+                        blurTimeoutRef.current = window.setTimeout(() => {
+                          setIsAreaMenuOpen(false);
+                        }, 120);
+                      }}
+                      placeholder={areaAutocompleteOptions.length > 0 ? "พิมพ์เพื่อค้นหา" : "ยังไม่มีพื้นที่"}
+                    />
+                    {isAreaMenuOpen ? (
+                      <div className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-card shadow-sm">
+                        {filterAreaOptions(areaAutocompleteOptions, areaQuery).map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            className="flex w-full items-center px-3 py-2 text-left text-sm hover:bg-muted"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => {
+                              setAreaQuery(option.label);
+                              setSelectedAreaId(option.id);
+                              setIsAreaMenuOpen(false);
+                            }}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                        {filterAreaOptions(areaAutocompleteOptions, areaQuery).length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-muted-foreground">
+                            ไม่พบพื้นที่ที่ตรงกัน
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  {!selectedAreaId && areaQuery ? (
+                    <span className="text-xs text-destructive">กรุณาเลือกพื้นที่จากรายการ</span>
+                  ) : null}
+                  <Button type="button" variant="outline" onClick={() => setIsAddAreaOpen((current) => !current)}>
+                    <Plus aria-hidden />
+                    {isAddAreaOpen ? "ซ่อนเพิ่มพื้นที่" : "เพิ่มพื้นที่ใหม่"}
+                  </Button>
+                  {isAddAreaOpen ? (
+                    <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                      <Input value={newAreaName} onChange={(event) => setNewAreaName(event.target.value)} placeholder="เพิ่มพื้นที่ใหม่" />
+                      <select value={newAreaZoneId} onChange={(event) => setNewAreaZoneId(event.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm">
+                        <option value="">เลือกโซน</option>
+                        {zoneOptions.map((zone) => (
+                          <option key={zone.id} value={zone.id}>{zone.label}</option>
+                        ))}
+                      </select>
+                      <Button type="button" variant="outline" onClick={addNewArea}><Plus aria-hidden />Add</Button>
+                    </div>
+                  ) : null}
+                </div>
               </Field>
 
               <Field label="เวลาเช็กอิน" htmlFor="check_in_time">
@@ -662,18 +855,23 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
               สิ่งอำนวยความสะดวก
             </h2>
 
-            {options.facilities.length > 0 ? (
+            {facilityOptions.length > 0 ? (
               <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {options.facilities.map((facility) => (
+                {facilityOptions.map((facility) => (
                   <label
                     key={facility.id}
                     className="flex min-h-10 items-center gap-3 rounded-md border border-border px-3 py-2 text-sm"
                   >
                     <input
-                      name="facility_ids"
                       type="checkbox"
-                      value={facility.id}
-                      defaultChecked={house?.facilityIds.includes(facility.id)}
+                      checked={selectedFacilityIds.includes(facility.id)}
+                      onChange={(event) =>
+                        setSelectedFacilityIds((current) =>
+                          event.target.checked
+                            ? [...current, facility.id]
+                            : current.filter((id) => id !== facility.id),
+                        )
+                      }
                       className="h-4 w-4 accent-brand"
                     />
                     <span>{facility.name}</span>
@@ -685,6 +883,23 @@ export function HouseCreateForm({ house, options }: HouseCreateFormProps) {
                 ยังไม่มีรายการ facilities
               </p>
             )}
+            <div className="mt-4 space-y-2">
+              <Button type="button" variant="outline" onClick={() => setIsAddFacilityOpen((current) => !current)}>
+                <Plus aria-hidden />
+                {isAddFacilityOpen ? "ซ่อนเพิ่มสิ่งอำนวยความสะดวก" : "เพิ่มสิ่งอำนวยความสะดวกใหม่"}
+              </Button>
+              {isAddFacilityOpen ? (
+                <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_auto]">
+                  <Input placeholder="ชื่อสิ่งอำนวยความสะดวก" value={facilityNewName} onChange={(event) => setFacilityNewName(event.target.value)} />
+                  <Input placeholder="slug" value={facilityNewSlug} onChange={(event) => setFacilityNewSlug(event.target.value)} />
+                  <Input placeholder="icon" value={facilityNewIcon} onChange={(event) => setFacilityNewIcon(event.target.value)} />
+                  <Button type="button" variant="outline" onClick={addNewFacility}>
+                    <Plus aria-hidden />
+                    Add
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           </section>
 
           <section className="rounded-lg border border-border bg-card p-5 shadow-sm">

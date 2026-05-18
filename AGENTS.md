@@ -13,6 +13,7 @@
 - House domain logic อยู่ใน `lib/houses.ts`
 - House recommendation logic อยู่ใน `lib/house-recommendations.ts`
 - Accommodation recommendation logic อยู่ใน `lib/accommodation-recommendations.ts`
+- Area activity logic อยู่ใน `lib/area-activities.ts`
 - Villa calendar logic อยู่ใน `lib/villa-calendar.ts`
 - Villa calendar types (shared types) อยู่ใน `lib/villa-calendar-types.ts`
 - Blog domain logic อยู่ใน `lib/blog.ts`
@@ -41,6 +42,7 @@
 | `.agents/docs/house-admin.md`           | งานแตะ `/admin/houses`, `HouseCreateForm`, `AdminHouseImageManager`, `AdminHouseCalendar`, `SettingsManager` หรือ `/api/admin/houses` |
 | `.agents/docs/house-recommendations.md` | งานแตะ `house_recommendations` table, `lib/house-recommendations.ts` หรือ `/admin/recommendations`                                    |
 | `.agents/docs/accommodation-recommendations.md` | งานแตะ `accommodation_recommendations` table, `lib/accommodation-recommendations.ts` หรือ `/admin/houses/recommendations`                   |
+| `.agents/docs/area-activities.md` | งานแตะ `area_activities`, `lib/area-activities.ts`, `/admin/area-activities`, `/api/admin/area-activities` หรือกิจกรรมแนะนำบน `/houses/[id]` |
 | `.agents/docs/blog.md`                  | งานแตะ `lib/blog.ts`, `/blog` pages, `BlogPostForm`, Tiptap editor หรือ `/api/blog`                                                   |
 | `.agents/docs/ui-components.md`         | งานแตะ UI components, UX rules หรือ theme/color tokens                                                                                |
 | `.agents/docs/database.md`              | งานแตะ Supabase setup, migrations, Auth/Roles หรือ config files                                                                       |
@@ -78,6 +80,7 @@
   - `/admin/houses/new`
   - `/admin/houses/[id]`
   - `/admin/houses/settings`
+  - `/admin/area-activities`
 - API:
   - `/api/houses`
   - `/api/houses/[id]`
@@ -96,6 +99,10 @@
   - `/api/admin/houses/settings` (POST: เพิ่ม province/zone/area/type/facility)
   - `/api/admin/accommodations/recommendations`
   - `/api/admin/accommodations/recommendations/[id]`
+  - `/api/admin/area-activities`
+  - `/api/admin/area-activities/[id]`
+  - `/api/admin/area-activities/[id]/images`
+  - `/api/area-activities`
 
 ## Core Rule
 
@@ -104,6 +111,7 @@
 - logic เกี่ยวกับบ้านพัก: `lib/houses.ts`
 - logic เกี่ยวกับบ้านแนะนำ: `lib/house-recommendations.ts`
 - logic เกี่ยวกับบ้านแนะนำ (บ้านพักในระบบ): `lib/accommodation-recommendations.ts`
+- logic เกี่ยวกับกิจกรรมแนะนำตามพื้นที่: `lib/area-activities.ts`
 - logic เกี่ยวกับ blog: `lib/blog.ts`
 - logic เกี่ยวกับ role/session/API auth: `lib/auth/*`
 

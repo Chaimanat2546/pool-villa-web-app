@@ -3,11 +3,14 @@ import { Suspense, type ComponentType } from "react";
 import {
   Bath,
   BedDouble,
+  CircleCheck,
+  ExternalLink,
   Flame,
   Gamepad2,
   MapPin,
   Music2,
   PawPrint,
+  Phone,
   Sparkles,
   Users,
   Waves,
@@ -29,6 +32,10 @@ import { HouseSection } from "../HouseSection";
 import { HouseImageGallery } from "./HouseImageGallery";
 import { VillaCalendar } from "./VillaCalendar";
 import { getPublicAccommodationRecommendations } from "@/lib/accommodation-recommendations";
+import { getPublicAreaActivitiesForArea } from "@/lib/area-activities";
+import { AreaActivitiesSection } from "./AreaActivitiesSection";
+
+const AREA_ACTIVITY_PAGE_SIZE = 4;
 
 type PageProps = {
   params: Promise<{
@@ -42,11 +49,12 @@ type DetailItem = {
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 };
 
-type AmenityItem = DetailItem;
-
-function isEnabled(value: string) {
-  return value.trim().toLowerCase() === "y";
-}
+type AmenityItem = {
+  id: string;
+  label: string;
+  value?: string;
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+};
 
 function formatNightlyPrice(house: House) {
   const displayPrice = getDisplayNightlyPrice(house.price);
@@ -92,67 +100,53 @@ function getOverviewItems(house: House): DetailItem[] {
   ];
 }
 
-function getAmenityItems(house: House): AmenityItem[] {
-  const poolLabel = getPoolLabel(house.swim);
-  const amenities: AmenityItem[] = [];
+function getFacilityIcon(slug: string) {
+  const normalizedSlug = slug.trim().toLowerCase();
 
-  if (poolLabel) {
-    amenities.push({ label: "สระว่ายน้ำ", value: poolLabel, icon: Waves });
+  if (["wifi", "wi-fi"].includes(normalizedSlug)) return Wifi;
+  if (["grill", "bbq", "barbecue"].includes(normalizedSlug)) return Flame;
+  if (["pet", "pets", "pet-friendly"].includes(normalizedSlug)) return PawPrint;
+  if (["karaoke", "discotech", "disco", "party"].includes(normalizedSlug)) {
+    return Music2;
   }
-
-  if (isEnabled(house.wifi)) {
-    amenities.push({ label: "Wi-Fi", value: "อินเทอร์เน็ตไร้สาย", icon: Wifi });
+  if (
+    [
+      "snooker",
+      "billard",
+      "billiard",
+      "pool-table",
+      "tabletennis",
+      "table-tennis",
+      "pingpong",
+      "airhockey",
+      "air-hockey",
+    ].includes(normalizedSlug)
+  ) {
+    return Gamepad2;
   }
-
-  if (isEnabled(house.grill)) {
-    amenities.push({ label: "ปิ้งย่าง", value: "มีเตาปิ้งย่าง", icon: Flame });
+  if (
+    [
+      "slider",
+      "water-slider",
+      "swimming_kid",
+      "swimming-kid",
+      "kid-pool",
+      "kids-pool",
+    ].includes(normalizedSlug)
+  ) {
+    return Waves;
   }
+  if (["jacuzzi", "bath", "bathtub"].includes(normalizedSlug)) return Bath;
 
-  if (isEnabled(house.pet)) {
-    amenities.push({ label: "สัตว์เลี้ยง", value: "นำสัตว์เลี้ยงเข้าได้", icon: PawPrint });
-  }
+  return CircleCheck;
+}
 
-  if (isEnabled(house.karaoke)) {
-    amenities.push({ label: "คาราโอเกะ", value: "มีชุดคาราโอเกะ", icon: Music2 });
-  }
-
-  if (isEnabled(house.snooker)) {
-    amenities.push({ label: "สนุกเกอร์", value: "มีโต๊ะสนุกเกอร์", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.billard)) {
-    amenities.push({ label: "พูล/บิลเลียด", value: "มีโต๊ะพูล", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.slider)) {
-    amenities.push({ label: "สไลเดอร์", value: "มีสไลเดอร์", icon: Waves });
-  }
-
-  if (isEnabled(house.swimmingKid)) {
-    amenities.push({ label: "สระเด็ก", value: "มีสระสำหรับเด็ก", icon: Waves });
-  }
-
-  if (isEnabled(house.jacuzzi)) {
-    amenities.push({ label: "Jacuzzi", value: "มีอ่างจากุซซี่", icon: Sparkles });
-  }
-
-  if (isEnabled(house.bath)) {
-    amenities.push({ label: "อ่างอาบน้ำ", value: "มีอ่างอาบน้ำ", icon: Bath });
-  }
-
-  if (isEnabled(house.tabletennis)) {
-    amenities.push({ label: "ปิงปอง", value: "มีโต๊ะปิงปอง", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.airhockey)) {
-    amenities.push({ label: "Air hockey", value: "มีโต๊ะแอร์ฮอกกี้", icon: Gamepad2 });
-  }
-
-  if (isEnabled(house.discotech)) {
-    amenities.push({ label: "ปาร์ตี้", value: "มีไฟ/เสียงสำหรับปาร์ตี้", icon: Music2 });
-  }
-
-  return amenities;
+function getAmenityItems(house: PublicHouseDetail): AmenityItem[] {
+  return house.facilities.map((facility) => ({
+    id: facility.id,
+    label: facility.name,
+    icon: getFacilityIcon(facility.slug),
+  }));
 }
 
 function OverviewItem({ item }: { item: DetailItem }) {
@@ -175,30 +169,41 @@ function AmenityRow({ item }: { item: AmenityItem }) {
       <Icon className="h-5 w-5 shrink-0 text-primary" aria-hidden />
       <div>
         <p className="font-medium text-primary">{item.label}</p>
-        <p className="text-sm text-muted-foreground">{item.value}</p>
+        {item.value && (
+          <p className="text-sm text-muted-foreground">{item.value}</p>
+        )}
       </div>
     </div>
   );
 }
 
-function InternalHouseDetails({ house }: { house: PublicHouseDetail }) {
+function AdditionalDetails({
+  house,
+  displayCode,
+}: {
+  house: PublicHouseDetail;
+  displayCode: string;
+}) {
   const hasContacts = house.contacts.length > 0;
-  const hasFacilities = house.facilities.length > 0;
 
   return (
-    <section className="border-b border-border py-8">
-      <h2 className="text-2xl font-bold text-primary">ข้อมูลจากระบบ</h2>
+    <section className="py-8">
+      <h2 className="text-2xl font-bold text-primary">รายละเอียดเพิ่มเติม</h2>
 
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <InfoCard label="รหัสบ้าน" value={displayCode} />
+        <InfoCard label="ระยะห่างจากทะเล" value={formatSeaDistance(house.farsea)} />
+        <InfoCard label="ประเภทสระ" value={getPoolLabel(house.swim) ?? "ไม่ระบุ"} />
+        <InfoCard label="ราคา" value={`${formatNightlyPrice(house)} / คืน`} />
         <InfoCard label="ประเภทบ้าน" value={house.accommodationTypeName} />
         <InfoCard label="พื้นที่/โซน" value={formatAreaLabel(house)} />
         <InfoCard
           label="เช็คอิน"
-          value={house.checkInTime ? `หลัง ${house.checkInTime}` : null}
+          value={house.checkInTime ? `หลัง ${house.checkInTime.slice(0, 5)} น.` : null}
         />
         <InfoCard
           label="เช็คเอาท์"
-          value={house.checkOutTime ? `ก่อน ${house.checkOutTime}` : null}
+          value={house.checkOutTime ? `ก่อน ${house.checkOutTime.slice(0, 5)} น.` : null}
         />
         <InfoCard
           label="ค่ามัดจำ"
@@ -217,45 +222,40 @@ function InternalHouseDetails({ house }: { house: PublicHouseDetail }) {
           {house.googleMapsUrl && (
             <a
               href={house.googleMapsUrl}
-              className="mt-2 inline-flex text-sm font-semibold text-accent underline"
+              className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-accent underline underline-offset-4"
               target="_blank"
               rel="noreferrer"
             >
               เปิดแผนที่
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             </a>
           )}
         </div>
       )}
 
-      {(house.poolDescription || house.petPolicyDetails || house.additionalFeeDetails) && (
-        <div className="mt-6 space-y-3">
-          {house.poolDescription && (
-            <TextCard label="รายละเอียดสระ" value={house.poolDescription} />
-          )}
-          {house.petPolicyDetails && (
-            <TextCard label="นโยบายสัตว์เลี้ยง" value={house.petPolicyDetails} />
-          )}
-          {house.additionalFeeDetails && (
-            <TextCard label="ค่าใช้จ่ายเพิ่มเติม" value={house.additionalFeeDetails} />
-          )}
-        </div>
-      )}
-
-      {hasFacilities && (
-        <div className="mt-6">
-          <p className="text-sm text-muted-foreground">Facilities</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {house.facilities.map((facility) => (
-              <span
-                key={facility.id}
-                className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-muted-foreground"
-              >
-                {facility.name}
-              </span>
-            ))}
+      {(house.bedroomDetails ||
+        house.poolDescription ||
+        house.petPolicyDetails ||
+        house.additionalDetails ||
+        house.additionalFeeDetails) && (
+          <div className="mt-6 space-y-3">
+            {house.bedroomDetails && (
+              <TextCard label="รายละเอียดห้องนอน" value={house.bedroomDetails} />
+            )}
+            {house.poolDescription && (
+              <TextCard label="รายละเอียดสระ" value={house.poolDescription} />
+            )}
+            {house.petPolicyDetails && (
+              <TextCard label="นโยบายสัตว์เลี้ยง" value={house.petPolicyDetails} />
+            )}
+            {house.additionalDetails && (
+              <TextCard label="รายละเอียดอื่นๆ" value={house.additionalDetails} />
+            )}
+            {house.additionalFeeDetails && (
+              <TextCard label="ค่าใช้จ่ายเพิ่มเติม" value={house.additionalFeeDetails} />
+            )}
           </div>
-        </div>
-      )}
+        )}
 
       {hasContacts && (
         <div className="mt-6">
@@ -276,7 +276,8 @@ function InternalHouseDetails({ house }: { house: PublicHouseDetail }) {
                     </p>
                   )}
                 </div>
-                <span className="text-sm font-semibold text-accent">
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
+                  <Phone className="h-3.5 w-3.5" aria-hidden />
                   {contact.phoneNumber}
                 </span>
               </div>
@@ -348,10 +349,23 @@ async function HouseDetail({ params }: PageProps) {
     ? house.code
     : `DV-${house.code}`;
   const displayTitle = house.name?.trim() || displayCode;
+  const systemLocationLabel = formatAreaLabel(house);
+  const locationLabel = systemLocationLabel ?? "บ้านพักของเรา";
+  const recommendedSourceIds = recommendations
+    .map((recommendation) => recommendation.accommodationId)
+    .filter((accommodationId) => accommodationId !== house.sourceId);
+  const areaActivities = await getPublicAreaActivitiesForArea({
+    areaId: house.accommodationAreaId,
+    page: 1,
+    pageSize: AREA_ACTIVITY_PAGE_SIZE,
+  });
 
-  const publicHouseImages = await getPublicHouseImagesByAccommodationId(
-    house.sourceId,
-  );
+  const [publicHouseImages, recommendedHouses] = await Promise.all([
+    getPublicHouseImagesByAccommodationId(house.sourceId),
+    applyPublicAccommodationCoverImages(
+      getHousesBySourceIds(houses, recommendedSourceIds),
+    ),
+  ]);
 
   const publicCoverImage =
     publicHouseImages.find((image) => image.zone === "cover")?.url ?? null;
@@ -362,14 +376,6 @@ async function HouseDetail({ params }: PageProps) {
   const imageGroups = groupHouseImagesByZone(houseImages);
   const overviewItems = getOverviewItems(house);
   const amenityItems = getAmenityItems(house);
-  const recommendedHouses = await applyPublicAccommodationCoverImages(
-    getHousesBySourceIds(
-      houses,
-      recommendations
-        .map((recommendation) => recommendation.accommodationId)
-        .filter((accommodationId) => accommodationId !== house.sourceId),
-    ),
-  );
 
   return (
     <>
@@ -383,7 +389,7 @@ async function HouseDetail({ params }: PageProps) {
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground md:text-base">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="h-4 w-4" aria-hidden />
-            บ้านพักของเรา
+            {locationLabel}
           </span>
           <span className="hidden text-border sm:inline">|</span>
           <span className="inline-flex items-center gap-1.5">
@@ -430,7 +436,7 @@ async function HouseDetail({ params }: PageProps) {
             {amenityItems.length > 0 ? (
               <div className="mt-5 grid grid-cols-1 gap-x-8 sm:grid-cols-2">
                 {amenityItems.map((item) => (
-                  <AmenityRow key={item.label} item={item} />
+                  <AmenityRow key={item.id} item={item} />
                 ))}
               </div>
             ) : (
@@ -440,35 +446,7 @@ async function HouseDetail({ params }: PageProps) {
             )}
           </section>
 
-          <InternalHouseDetails house={house} />
-
-          <section className="py-8">
-            <h2 className="text-2xl font-bold text-primary">รายละเอียดเพิ่มเติม</h2>
-            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">รหัสบ้าน</p>
-                <p className="mt-1 font-semibold text-primary">{displayCode}</p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ระยะห่างจากทะเล</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {formatSeaDistance(house.farsea)}
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ประเภทสระ</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {getPoolLabel(house.swim) ?? "ไม่ระบุ"}
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/40 p-4">
-                <p className="text-sm text-muted-foreground">ราคา</p>
-                <p className="mt-1 font-semibold text-primary">
-                  {formatNightlyPrice(house)} / คืน
-                </p>
-              </div>
-            </div>
-          </section>
+          <AdditionalDetails house={house} displayCode={displayCode} />
         </div>
 
         <aside className="lg:col-span-4">
@@ -476,6 +454,12 @@ async function HouseDetail({ params }: PageProps) {
             <VillaCalendar
               villaId={house.sourceId}
               source="internal"
+            />
+            <AreaActivitiesSection
+              areaId={house.accommodationAreaId}
+              activities={areaActivities.activities}
+              totalCount={areaActivities.totalCount}
+              pageSize={AREA_ACTIVITY_PAGE_SIZE}
             />
           </div>
         </aside>

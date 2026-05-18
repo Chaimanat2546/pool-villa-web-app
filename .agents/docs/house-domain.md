@@ -34,14 +34,13 @@ swimming_kid;
 
 หน้าใน `app/(public)/houses` ควรเป็นตัวประกอบ UI เป็นหลัก
 
-- `/houses`: ดึงข้อมูลด้วย `getHouses()` แล้วใช้ selector เช่น `getBudgetHouses()` และ `getNearSeaHouses()`
-- `/houses` แสดงบ้านแนะนำจาก Supabase โดย join ด้วย `h_id` กับ external house data ใน page/helper
-- `/houses` และ `/houses/search` ต้องใช้ `applyPublicAccommodationCoverImages()` หลังได้ list บ้าน เพื่อให้ `HouseCard` ใช้รูปปกจาก internal `accommodation_images` ถ้ามี และ fallback เป็น external cover เดิมถ้าไม่มี
-- `/houses/[id]`: เป็น detail page แบบ orchestration ใช้ helper จาก `lib/houses.ts` เช่น `getHouses()`, `getHouseImages()`, `getPublicHouseImages()`, `groupHouseImagesByZone()` และ `applyPublicAccommodationCoverImages()` แล้ว `notFound()` ถ้าไม่เจอ
-- `/houses/[id]` ต้อง prefer รูปจาก internal `accommodation_images` ก่อน ถ้ามีรูป internal ให้ใช้รูป `cover` เป็น primary image และใช้รูปหมวดอื่นใน gallery; ถ้าไม่มีรูป internal ให้ fallback ไป external image API เดิม
-- `/houses/[id]` layout ปัจจุบันคือ header, gallery, main detail ฝั่งซ้าย, `VillaCalendar` sticky sidebar ฝั่งขวา และ section บ้านพักแนะนำด้านล่าง
-- `/houses/search`: ใช้ `filterHouses(await getHouses(), params)`
-- ถ้ามี uncached data ใน Server Component ให้ render dynamic part หลัง `<Suspense>`
+- `/houses`: ดึงข้อมูลด้วย `getInternalHouses()` แล้วใช้ selector เช่น `getBudgetHouses()` และ `getNearSeaHouses()`, และแสดงบ้านแนะนำโดยดึงจาก `getPublicAccommodationRecommendations()` และกรองด้วย `getHousesBySourceIds()`
+- `/houses` และ `/houses/search` ต้องใช้ `applyPublicAccommodationCoverImages()` หลังได้ list บ้าน เพื่อให้ `HouseCard` ใช้รูปปกจาก internal `accommodation_images`
+- `/houses/[id]`: เป็น detail page แบบ orchestration ใช้ `getInternalHouseDetailByCode(id)` เพื่อดึงข้อมูลรายละเอียดบ้านพักในระบบแบบสมบูรณ์
+- `/houses/[id]` ดึงรูปภาพทั้งหมดของที่พักโดยใช้ `getPublicHouseImagesByAccommodationId(house.sourceId)` ซึ่งจะแชร์รูปภาพกับระบบรูปภาพส่วนการจัดการ
+- `/houses/[id]` นำเสนอข้อมูลสิ่งอำนวยความสะดวกโดยดึงข้อมูลแบบไดนามิกจาก `house.facilities` และแสดงผลรายละเอียดเพิ่มเติมต่าง ๆ ( bedroom details, check-in/out times, contact details เป็นต้น) อย่างมีสัดส่วน
+- `/houses/[id]` เชื่อมโยงและแสดงกิจกรรมแนะนำตามพื้นที่โดยดึงผ่าน `getPublicAreaActivitiesForArea()` ใน `AreaActivitiesSection`
+- `/houses/search`: ใช้ `getInternalHouses()` และ `filterHouses(...)` เพื่อทำการค้นหาและกรองบ้านพักในระบบทั้งหมด
 
 ## Search Filters
 
